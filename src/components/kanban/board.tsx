@@ -54,14 +54,7 @@ export function KanbanBoard() {
 
   useEffect(() => {
     setDndReady(true);
-    try {
-      const result = useBoardStore.persist.rehydrate();
-      void Promise.resolve(result).then(() => {
-        useBoardStore.getState().setHasHydrated(true);
-      });
-    } catch {
-      useBoardStore.getState().setHasHydrated(true);
-    }
+    void useBoardStore.getState().hydrate();
   }, []);
 
   const sensors = useSensors(
