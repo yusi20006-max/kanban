@@ -49,12 +49,12 @@ function fail(error: unknown) {
 server.registerTool("kanban_list_boards", {
   description: "List Kanban boards owned by the authenticated MCP identity.",
   inputSchema: z.object({}),
-}, async () => { try { guard(); return ok(await listBoards(userId)); } catch (e) { return fail(e); } });
+}, async () => { try { guard(); await assertRateLimit(userId, "mcp"); return ok(await listBoards(userId)); } catch (e) { return fail(e); } });
 
 server.registerTool("kanban_get_board", {
   description: "Read one owned Kanban board and its active cards.",
   inputSchema: z.object({ boardId: z.string().min(1).max(128) }),
-}, async ({ boardId }) => { try { guard(); return ok(await listBoard(userId, boardId)); } catch (e) { return fail(e); } });
+}, async ({ boardId }) => { try { guard(); await assertRateLimit(userId, "mcp"); return ok(await listBoard(userId, boardId)); } catch (e) { return fail(e); } });
 
 server.registerTool("kanban_create_card", {
   description: "Create a card in an owned Kanban board.",
@@ -175,6 +175,6 @@ server.registerTool("kanban_add_comment", {
 server.registerTool("kanban_search_cards", {
   description: "Search active cards by title or description within an owned board.",
   inputSchema: z.object({ boardId: z.string().min(1).max(128), query: z.string().trim().min(1).max(200) }),
-}, async (args) => { try { guard(); return ok(await searchCards(userId, args)); } catch (e) { return fail(e); } });
+}, async (args) => { try { guard(); await assertRateLimit(userId, "mcp"); return ok(await searchCards(userId, args)); } catch (e) { return fail(e); } });
 
 await server.connect(new StdioServerTransport());
