@@ -78,3 +78,14 @@ The original default board is migrated with Todo/Doing/Done columns; cards are n
 Authenticated web requests receive a correlation request ID and a per-user rate limit. Sensitive web and MCP mutations write an audit event with actor, source, action, target, request ID, outcome and error code.
 
 Authorization is board-owner based at the domain boundary, so API/MCP operations cannot cross project ownership. GitHub credentials remain server-only environment configuration.
+
+## Production / PWA / deployment
+
+Phase 7 adds production liveness/readiness endpoints, a conservative offline PWA shell, authenticated Streamable HTTP MCP at `/mcp`, backup/restore commands, deployment health smoke tests, and a production runbook.
+
+MCP transports:
+
+- local/host-managed: `npm run mcp:server`
+- production HTTP sidecar: `npm run mcp:http`
+
+The HTTP sidecar requires `KANBAN_MCP_TOKEN` and `KANBAN_MCP_USER_ID`, validates the configured host/origin, and does not expose the token to client-side code.
