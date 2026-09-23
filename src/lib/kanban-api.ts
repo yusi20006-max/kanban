@@ -8,6 +8,10 @@ import {
   listBoard as listBoardDomain, moveCard as moveCardDomain, moveCardInputSchema,
   updateCard as updateCardDomain, updateCardInputSchema,
 } from "@/lib/kanban-domain";
+import {
+  createBoard, updateBoard, archiveBoard, upsertColumn, addLabel, setCardLabel,
+  addChecklistItem, setChecklistItem, addComment, searchCards,
+} from "@/lib/kanban-domain";
 import { recordWorkflowPhase, transitionAgent } from "@/lib/kanban-domain";
 import { recordPhaseInputSchema, transitionInputSchema } from "@/lib/workflow";
 
@@ -64,3 +68,34 @@ export const transitionAgentFn = createServerFn({ method: "POST" })
 export const recordWorkflowPhaseFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware]).inputValidator(recordPhaseInputSchema)
   .handler(async ({ data, context }) => recordWorkflowPhase(context.userId, data));
+
+export const createBoardFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ name: z.string().trim().min(1).max(200), description: z.string().max(5000).default(""), projectKey: z.string().trim().max(100).nullable().default(null) }))
+  .handler(async ({ data, context }) => createBoard(context.userId, data));
+export const updateBoardFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ boardId: z.string().min(1).max(128), name: z.string().trim().min(1).max(200), description: z.string().max(5000).default(""), projectKey: z.string().trim().max(100).nullable().default(null) }))
+  .handler(async ({ data, context }) => updateBoard(context.userId, data));
+export const archiveBoardFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ boardId: z.string().min(1).max(128) }))
+  .handler(async ({ data, context }) => archiveBoard(context.userId, data.boardId));
+export const upsertColumnFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ boardId: z.string().min(1).max(128), id: z.string().min(1).max(128), name: z.string().trim().min(1).max(200), position: z.number().int().min(0) }))
+  .handler(async ({ data, context }) => upsertColumn(context.userId, data));
+export const addLabelFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ boardId: z.string().min(1).max(128), name: z.string().trim().min(1).max(100) }))
+  .handler(async ({ data, context }) => addLabel(context.userId, data));
+export const setCardLabelFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ boardId: z.string().min(1).max(128), cardId: z.string().min(1).max(128), labelId: z.string().min(1).max(128), enabled: z.boolean() }))
+  .handler(async ({ data, context }) => setCardLabel(context.userId, data));
+export const addChecklistItemFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ boardId: z.string().min(1).max(128), cardId: z.string().min(1).max(128), title: z.string().trim().min(1).max(500) }))
+  .handler(async ({ data, context }) => addChecklistItem(context.userId, data));
+export const setChecklistItemFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ boardId: z.string().min(1).max(128), cardId: z.string().min(1).max(128), itemId: z.string().min(1).max(128), completed: z.boolean() }))
+  .handler(async ({ data, context }) => setChecklistItem(context.userId, data));
+export const addCommentFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ boardId: z.string().min(1).max(128), cardId: z.string().min(1).max(128), body: z.string().trim().min(1).max(20000) }))
+  .handler(async ({ data, context }) => addComment(context.userId, data));
+export const searchCardsFn = createServerFn({ method: "GET" }).middleware([authMiddleware])
+  .inputValidator(z.object({ boardId: z.string().min(1).max(128), query: z.string().trim().min(1).max(200) }))
+  .handler(async ({ data, context }) => searchCards(context.userId, data));
