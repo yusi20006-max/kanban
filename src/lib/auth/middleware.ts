@@ -1,4 +1,5 @@
 import { createMiddleware } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 
 /**
  * Auth middleware for server functions — the standard way to get the caller's
@@ -43,5 +44,9 @@ export const authMiddleware = createMiddleware({ type: "function" })
     // Reject scripted cross-site/sibling requests before touching per-user data.
     assertSameSiteRequest();
     const userId = await requireUserId(context.bearerToken);
-    return next({ context: { userId } });
+    const { assertRateLimit } = await import("@/lib/security.server");
+    await assertRateLimit(userId, "web");
+    const request = getRequest();
+    const requestId = request?.headers.get("x-request-id")?.trim() || crypto.randomUUID();
+    return next({ context: { userId, requestId } });
   });
