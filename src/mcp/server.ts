@@ -11,7 +11,7 @@ const token = process.env.KANBAN_MCP_TOKEN?.trim();
 const userId = process.env.KANBAN_MCP_USER_ID?.trim() || "dev-user";
 if (!token) throw new Error("KANBAN_MCP_TOKEN is required; refusing unauthenticated MCP startup");
 
-const server = new McpServer({ name: "yasin-kanban", version: "1.0.0" }, { capabilities: { tools: {} } });
+const server = new McpServer({ name: "yasin-kanban", version: "1.0.0" });
 
 function guard() {
   if (process.env.KANBAN_MCP_TOKEN?.trim() !== token) throw new Error("MCP_AUTH_FAILED");
