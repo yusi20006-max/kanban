@@ -47,7 +47,7 @@ const tools = await waitForResponse(2);
 const names = (tools.result?.tools ?? []).map((tool) => tool.name);
 const expected = [
   "kanban_list_boards", "kanban_get_board", "kanban_create_card",
-  "kanban_update_card", "kanban_move_card", "kanban_archive_card",
+  "kanban_update_card", "kanban_move_card", "kanban_archive_card", "kanban_link_github", "kanban_refresh_github",
 ];
 for (const name of expected) if (!names.includes(name)) throw new Error("Missing MCP tool: " + name);
 
