@@ -3,7 +3,7 @@ import * as z from "zod/v4";
 import {
   archiveCard, archiveCardInputSchema, createCard, cardInputSchema, listBoard, listBoards,
   moveCard, moveCardInputSchema, updateCard, updateCardInputSchema,
-  linkGithubCard, refreshGithubCard, recordWorkflowPhase, transitionAgent,
+  recordWorkflowPhase, transitionAgent,
   createBoard, updateBoard, archiveBoard, upsertColumn, addLabel, setCardLabel,
   addChecklistItem, setChecklistItem, addComment, searchCards,
 } from "@/lib/kanban-domain";
