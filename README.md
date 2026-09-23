@@ -57,3 +57,12 @@ Supported operations:
 - expose the synchronized CI state on board reads and MCP results
 
 Set `GITHUB_TOKEN` on the server before using these operations.
+
+## Workflow automation
+
+Cards now keep a separate agent execution state from the human Kanban column. The execution state machine supports `idle`, `running`, `blocked`, `waiting-ci`, `waiting-review`, `completed`, and `failed`, while workflow phases are tracked independently from `inspect` through `verify`.
+
+Transitions and phase results are persisted in `kanban_workflow_events`. Invalid or duplicate transitions are rejected before mutation. MCP exposes:
+
+- `kanban_transition_agent`
+- `kanban_record_phase`
