@@ -44,3 +44,16 @@ Local commands:
 npm run mcp:server
 npm run mcp:smoke
 ```
+
+## GitHub integration
+
+Cards can store references to a GitHub repository, Issue, Pull Request, head commit and latest workflow run without copying GitHub's state model. GitHub is queried server-side with `GITHUB_TOKEN`; credentials never enter the browser or MCP tool arguments.
+
+Supported operations:
+
+- link a card to an Issue and/or PR
+- refresh Issue/PR state
+- refresh the latest workflow run for the PR head SHA
+- expose the synchronized CI state on board reads and MCP results
+
+Set `GITHUB_TOKEN` on the server before using these operations.

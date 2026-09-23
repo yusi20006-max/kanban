@@ -6,6 +6,7 @@ import {
   listBoard, listBoards, moveCard, moveCardInputSchema,
   updateCard, updateCardInputSchema,
 } from "@/lib/kanban-domain";
+import { linkGithubCard, refreshGithubCard } from "@/lib/github-api.server";
 
 const token = process.env.KANBAN_MCP_TOKEN?.trim();
 const userId = process.env.KANBAN_MCP_USER_ID?.trim() || "dev-user";
@@ -68,5 +69,22 @@ server.registerTool("kanban_archive_card", {
     boardId: z.string().min(1).max(128), cardId: z.string().min(1).max(128),
   }),
 }, async (args) => { try { guard(); return ok(await archiveCard(userId, archiveCardInputSchema.parse(args))); } catch (e) { return fail(e); } });
+
+server.registerTool("kanban_link_github", {
+  description: "Link an owned card to a GitHub repository Issue and/or Pull Request.",
+  inputSchema: z.object({
+    boardId: z.string().min(1).max(128), cardId: z.string().min(1).max(128),
+    repo: z.string().regex(/^[^/]+\\/[^/]+$/),
+    issueNumber: z.number().int().positive().nullable().default(null),
+    prNumber: z.number().int().positive().nullable().default(null),
+  }),
+}, async (args) => { try { guard(); return ok(await linkGithubCard(userId, args)); } catch (e) { return fail(e); } });
+
+server.registerTool("kanban_refresh_github", {
+  description: "Refresh GitHub Issue, PR and latest CI state for an owned card.",
+  inputSchema: z.object({
+    boardId: z.string().min(1).max(128), cardId: z.string().min(1).max(128),
+  }),
+}, async (args) => { try { guard(); return ok(await refreshGithubCard(userId, args)); } catch (e) { return fail(e); } });
 
 await server.connect(new StdioServerTransport());
