@@ -36,7 +36,7 @@ export class DomainError extends Error {
 async function assertBoardOwner(userId: string, boardId: string) {
   const sql = await getSql();
   const rows = await sql.query<{ id: string }>(
-    "select id from kanban_boards where id = $1 and owner_user_id = $2",
+    "select id from kanban_boards where id = $1 and owner_user_id = $2 and archived_at is null",
     [boardId, userId],
   );
   if (!rows[0]) throw new DomainError("BOARD_NOT_FOUND");
@@ -46,7 +46,7 @@ async function assertBoardOwner(userId: string, boardId: string) {
 export async function listBoards(userId: string) {
   const sql = await getSql();
   return sql.query<{ id: string; name: string; created_at: string; updated_at: string }>(
-    "select id, name, created_at, updated_at from kanban_boards where owner_user_id = $1 order by created_at, id",
+    "select id, name, created_at, updated_at from kanban_boards where owner_user_id = $1 and archived_at is null order by created_at, id",
     [userId],
   );
 }
@@ -201,7 +201,7 @@ export async function updateBoard(userId: string, data: { boardId: string; name:
 
 export async function archiveBoard(userId: string, boardId: string) {
   const sql = await assertBoardOwner(userId, boardId);
-  await sql.query("delete from kanban_boards where id=$1", [boardId]);
+  await sql.query("update kanban_boards set archived_at=now(),updated_at=now() where id=$1", [boardId]);
   return { ok: true };
 }
 
