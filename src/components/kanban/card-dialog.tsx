@@ -78,7 +78,7 @@ export function CardDialog({ state, onClose }: CardDialogProps) {
     }
   }, [state, editing, editingColumn]);
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const nextTitle = title.trim();
     if (!nextTitle) {
@@ -86,18 +86,18 @@ export function CardDialog({ state, onClose }: CardDialogProps) {
       return;
     }
     if (state.mode === "create") {
-      addCard({ title: nextTitle, description, columnId });
+      await addCard({ title: nextTitle, description, columnId });
       toast("کارت افزوده شد");
     } else if (state.mode === "edit") {
-      updateCard(state.cardId, { title: nextTitle, description, columnId });
+      await updateCard(state.cardId, { title: nextTitle, description, columnId });
       toast("کارت به‌روز شد");
     }
     onClose();
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (state.mode !== "edit") return;
-    deleteCard(state.cardId);
+    await deleteCard(state.cardId);
     setConfirmDelete(false);
     onClose();
     toast("کارت حذف شد");
