@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "جریان",
+      "hasCanvas": false,
+      "bodyTextLen": 478,
+      "bodyTextHash": "93847b7bde841413a1fb00b8616a69fd370a098a8d53a46b9b3bddd95c66912b",
+      "bodyTextPrefix": "جریان تابلوی کار · ۵ کارت کارت جدید برای انجام کارهای پیش رو ۲ ط",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "جریان",
+      "hasCanvas": false,
+      "bodyTextLen": 478,
+      "bodyTextHash": "93847b7bde841413a1fb00b8616a69fd370a098a8d53a46b9b3bddd95c66912b",
+      "bodyTextPrefix": "جریان تابلوی کار · ۵ کارت کارت جدید برای انجام کارهای پیش رو ۲ ط",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-preview.json"
+}

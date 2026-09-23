@@ -1,0 +1,114 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --font-sans: "Vazirmatn", "Segoe UI", system-ui, sans-serif;
+
+  --color-background: #f0ece4;
+  --color-foreground: #1a1814;
+  --color-card: #faf8f4;
+  --color-card-foreground: #1a1814;
+  --color-popover: #faf8f4;
+  --color-popover-foreground: #1a1814;
+  --color-primary: #3d4f5f;
+  --color-primary-foreground: #f7f4ee;
+  --color-secondary: #e6e1d6;
+  --color-secondary-foreground: #1a1814;
+  --color-muted: #e6e1d6;
+  --color-muted-foreground: #6e6a62;
+  --color-accent: #ddd8cc;
+  --color-accent-foreground: #1a1814;
+  --color-destructive: #8f3a32;
+  --color-destructive-foreground: #faf8f4;
+  --color-border: color-mix(in oklab, #1a1814 12%, transparent);
+  --color-input: color-mix(in oklab, #1a1814 14%, transparent);
+  --color-ring: #3d4f5f;
+  --color-surface: #e6e1d6;
+  --color-subtle: #9a958c;
+  --color-todo: #8a8680;
+  --color-doing: #3d4f5f;
+  --color-done: #4d6b57;
+
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 28px;
+
+  --shadow-border:
+    0px 0px 0px 1px rgba(26, 24, 20, 0.06),
+    0px 1px 2px -1px rgba(26, 24, 20, 0.06),
+    0px 2px 4px 0px rgba(26, 24, 20, 0.04);
+  --shadow-border-hover:
+    0px 0px 0px 1px rgba(26, 24, 20, 0.08),
+    0px 1px 2px -1px rgba(26, 24, 20, 0.08),
+    0px 2px 4px 0px rgba(26, 24, 20, 0.06);
+  --shadow-lift:
+    0px 0px 0px 1px rgba(26, 24, 20, 0.08),
+    0px 12px 28px -8px rgba(26, 24, 20, 0.18),
+    0px 4px 10px -4px rgba(26, 24, 20, 0.1);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+.kanban-card {
+  box-shadow: var(--shadow-border);
+  transition-property: box-shadow, transform, opacity;
+  transition-duration: 250ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.kanban-card:hover {
+  box-shadow: var(--shadow-border-hover);
+}
+
+.kanban-card.is-dragging {
+  opacity: 0.35;
+  box-shadow: var(--shadow-border);
+}
+
+.kanban-card.is-overlay {
+  box-shadow: var(--shadow-lift);
+  transform: rotate(-1.25deg) scale(1.03);
+  cursor: grabbing;
+}
+
+.kanban-sortable {
+  transition: transform 250ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kanban-card,
+  .kanban-sortable,
+  .kanban-card.is-overlay {
+    transition: none;
+    transform: none;
+  }
+}
