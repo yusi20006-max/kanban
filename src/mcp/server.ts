@@ -7,6 +7,8 @@ import {
   updateCard, updateCardInputSchema,
 } from "@/lib/kanban-domain";
 import { linkGithubCard, refreshGithubCard } from "@/lib/github-api.server";
+import { recordWorkflowPhase, transitionAgent } from "@/lib/kanban-domain";
+import { recordPhaseInputSchema, transitionInputSchema } from "@/lib/workflow";
 
 const token = process.env.KANBAN_MCP_TOKEN?.trim();
 const userId = process.env.KANBAN_MCP_USER_ID?.trim() || "dev-user";
@@ -86,5 +88,24 @@ server.registerTool("kanban_refresh_github", {
     boardId: z.string().min(1).max(128), cardId: z.string().min(1).max(128),
   }),
 }, async (args) => { try { guard(); return ok(await refreshGithubCard(userId, args)); } catch (e) { return fail(e); } });
+
+server.registerTool("kanban_transition_agent", {
+  description: "Transition the execution state of an owned card using the workflow state machine.",
+  inputSchema: z.object({
+    boardId: z.string().min(1).max(128), cardId: z.string().min(1).max(128),
+    toState: z.enum(["idle", "running", "blocked", "waiting-ci", "waiting-review", "completed", "failed"]),
+    phase: z.enum(["inspect", "implement", "test", "pr", "ci", "merge", "verify", "completed"]).optional(),
+    result: z.string().max(20000).default(""),
+  }),
+}, async (args) => { try { guard(); return ok(await transitionAgent(userId, transitionInputSchema.parse(args))); } catch (e) { return fail(e); } });
+
+server.registerTool("kanban_record_phase", {
+  description: "Record a workflow phase result and advance the card to the next phase.",
+  inputSchema: z.object({
+    boardId: z.string().min(1).max(128), cardId: z.string().min(1).max(128),
+    phase: z.enum(["inspect", "implement", "test", "pr", "ci", "merge", "verify", "completed"]),
+    result: z.string().max(20000).default(""),
+  }),
+}, async (args) => { try { guard(); return ok(await recordWorkflowPhase(userId, recordPhaseInputSchema.parse(args))); } catch (e) { return fail(e); } });
 
 await server.connect(new StdioServerTransport());

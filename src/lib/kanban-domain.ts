@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getSql } from "@/lib/db";
+import { assertTransition, nextPhase, transitionInputSchema, recordPhaseInputSchema, type AgentState } from "@/lib/workflow";
 
 export const columnIdSchema = z.enum(["todo", "doing", "done"]);
 export const prioritySchema = z.enum(["low", "medium", "high", "critical"]);
@@ -128,4 +129,48 @@ export async function moveCard(userId: string, data: MoveCardInput) {
     await sql.query("update kanban_cards set position=$1,updated_at=now() where id=$2 and board_id=$3", [i, ids[i].id, data.boardId]);
   }
   return { ok: true };
+}
+
+export async function transitionAgent(userId: string, data: z.infer<typeof transitionInputSchema>) {
+  const sql = await assertBoardOwner(userId, data.boardId);
+  const rows = await sql.query<{ agent_state: AgentState; workflow_phase: string }>(
+    "select c.agent_state,c.workflow_phase from kanban_cards c join kanban_boards b on b.id=c.board_id " +
+    "where c.id=$1 and c.board_id=$2 and b.owner_user_id=$3 and c.archived_at is null",
+    [data.cardId, data.boardId, userId],
+  );
+  const current = rows[0];
+  if (!current) throw new DomainError("CARD_NOT_FOUND");
+  assertTransition(current.agent_state, data.toState);
+  const phase = data.phase ?? current.workflow_phase;
+  await sql.query(
+    "update kanban_cards set agent_state=$1,workflow_phase=$2,updated_at=now() where id=$3 and board_id=$4",
+    [data.toState, phase, data.cardId, data.boardId],
+  );
+  await sql.query(
+    "insert into kanban_workflow_events (id,card_id,phase,agent_state,attempt,result) " +
+    "values ($1,$2,$3,$4,(select count(*)+1 from kanban_workflow_events where card_id=$2 and phase=$3),$5)",
+    [crypto.randomUUID(), data.cardId, phase, data.toState, data.result],
+  );
+  return { cardId: data.cardId, fromState: current.agent_state, toState: data.toState, phase };
+}
+
+export async function recordWorkflowPhase(userId: string, data: z.infer<typeof recordPhaseInputSchema>) {
+  const sql = await assertBoardOwner(userId, data.boardId);
+  const rows = await sql.query<{ agent_state: AgentState; workflow_phase: string }>(
+    "select c.agent_state,c.workflow_phase from kanban_cards c join kanban_boards b on b.id=c.board_id " +
+    "where c.id=$1 and c.board_id=$2 and b.owner_user_id=$3 and c.archived_at is null",
+    [data.cardId, data.boardId, userId],
+  );
+  if (!rows[0]) throw new DomainError("CARD_NOT_FOUND");
+  const target = nextPhase(data.phase);
+  await sql.query(
+    "update kanban_cards set workflow_phase=$1,updated_at=now() where id=$2 and board_id=$3",
+    [target, data.cardId, data.boardId],
+  );
+  await sql.query(
+    "insert into kanban_workflow_events (id,card_id,phase,agent_state,attempt,result) " +
+    "values ($1,$2,$3,$4,(select count(*)+1 from kanban_workflow_events where card_id=$2 and phase=$3),$5)",
+    [crypto.randomUUID(), data.cardId, data.phase, rows[0].agent_state, data.result],
+  );
+  return { cardId: data.cardId, completedPhase: data.phase, nextPhase: target };
 }

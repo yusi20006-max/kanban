@@ -8,6 +8,8 @@ import {
   listBoard as listBoardDomain, moveCard as moveCardDomain, moveCardInputSchema,
   updateCard as updateCardDomain, updateCardInputSchema,
 } from "@/lib/kanban-domain";
+import { recordWorkflowPhase, transitionAgent } from "@/lib/kanban-domain";
+import { recordPhaseInputSchema, transitionInputSchema } from "@/lib/workflow";
 
 export const listBoardFn = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -54,3 +56,11 @@ export const refreshGithubFn = createServerFn({ method: "POST" })
     cardId: z.string().min(1).max(128),
   }))
   .handler(async ({ data, context }) => refreshGithubCard(context.userId, data));
+
+export const transitionAgentFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware]).inputValidator(transitionInputSchema)
+  .handler(async ({ data, context }) => transitionAgent(context.userId, data));
+
+export const recordWorkflowPhaseFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware]).inputValidator(recordPhaseInputSchema)
+  .handler(async ({ data, context }) => recordWorkflowPhase(context.userId, data));
