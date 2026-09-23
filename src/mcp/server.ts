@@ -7,7 +7,7 @@ import {
   updateCard, updateCardInputSchema,
 } from "@/lib/kanban-domain";
 import { linkGithubCard, refreshGithubCard } from "@/lib/github-api.server";
-import { recordWorkflowPhase, transitionAgent } from "@/lib/kanban-domain";
+import { recordWorkflowPhase, transitionAgent, createBoard, updateBoard, archiveBoard, upsertColumn, addLabel, setCardLabel, addChecklistItem, setChecklistItem, addComment, searchCards } from "@/lib/kanban-domain";
 import { recordPhaseInputSchema, transitionInputSchema } from "@/lib/workflow";
 
 const token = process.env.KANBAN_MCP_TOKEN?.trim();
