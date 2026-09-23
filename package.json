@@ -16,7 +16,7 @@
     "preview:stop": "node scripts/preview.mjs stop",
     "typecheck": "tsc --noEmit",
     "check:auth": "node scripts/check-auth-invariant.mjs",
-    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/workflow.test.ts && npm run mcp:smoke",
+    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/workflow.test.ts && npm run mcp:smoke && npm run mcp:http:smoke",
     "lint": "eslint .",
     "format": "prettier --write .",
     "mcp:server": "node --experimental-strip-types src/mcp/server.ts",
@@ -25,7 +25,8 @@
     "db:restore": "node scripts/db-restore.mjs",
     "health:check": "node scripts/health-check.mjs",
     "mcp:http": "node --experimental-strip-types src/mcp/http-server.ts",
-    "mcp:health": "node scripts/health-check.mjs"
+    "mcp:health": "node scripts/health-check.mjs",
+    "mcp:http:smoke": "node scripts/mcp-http-smoke.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
