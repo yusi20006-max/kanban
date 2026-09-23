@@ -1,200 +1,188 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { listBoard, createCard, updateCard, moveCard as moveCardRemote, archiveCard } from "@/lib/kanban-api";
 
 export const COLUMN_IDS = ["todo", "doing", "done"] as const;
 export type ColumnId = (typeof COLUMN_IDS)[number];
+
+export type Priority = "low" | "medium" | "high" | "critical";
 
 export type Card = {
   id: string;
   title: string;
   description: string;
   createdAt: number;
+  updatedAt?: number;
+  priority: Priority;
+  dueDate?: string | null;
 };
 
 export type Columns = Record<ColumnId, string[]>;
 
-export const COLUMN_META: Record<
-  ColumnId,
-  { title: string; hint: string; tone: "todo" | "doing" | "done" }
-> = {
+export const COLUMN_META: Record<ColumnId, { title: string; hint: string; tone: ColumnId }> = {
   todo: { title: "برای انجام", hint: "کارهای پیش رو", tone: "todo" },
   doing: { title: "در حال انجام", hint: "روی میز کار", tone: "doing" },
   done: { title: "انجام شده", hint: "به پایان رسیده", tone: "done" },
 };
 
-const SEED_CARDS: Record<string, Card> = {
-  "seed-1": {
-    id: "seed-1",
-    title: "طراحی صفحه ورود",
-    description: "طرح اولیه را با فونت وزیرمتن و فاصله‌گذاری ثابت ببند.",
-    createdAt: 1_727_000_000_000,
-  },
-  "seed-2": {
-    id: "seed-2",
-    title: "بازبینی مسیر پرداخت",
-    description: "منطق تخفیف و مالیات را روی سه سناریو تست کن.",
-    createdAt: 1_727_000_100_000,
-  },
-  "seed-3": {
-    id: "seed-3",
-    title: "نوشتن مستندات API",
-    description: "مسیرهای عمومی و کدهای خطا را مستند کن.",
-    createdAt: 1_727_000_200_000,
-  },
-  "seed-4": {
-    id: "seed-4",
-    title: "جلسه با تیم محصول",
-    description: "بازخورد اسپرینت را جمع‌بندی و اولویت‌ها را مشخص کن.",
-    createdAt: 1_727_000_300_000,
-  },
-  "seed-5": {
-    id: "seed-5",
-    title: "آزمایش نسخه موبایل",
-    description: "اسکرول افقی ستون‌ها و هدف‌های لمسی را چک کن.",
-    createdAt: 1_727_000_400_000,
-  },
-};
-
-const SEED_COLUMNS: Columns = {
-  todo: ["seed-1", "seed-2"],
-  doing: ["seed-3", "seed-4"],
-  done: ["seed-5"],
-};
-
-function newId() {
-  return crypto.randomUUID();
-}
+const BOARD_ID = "default";
 
 type BoardState = {
   columns: Columns;
   cards: Record<string, Card>;
   hasHydrated: boolean;
+  syncing: boolean;
+  syncError: string | null;
   setHasHydrated: (value: boolean) => void;
-  addCard: (input: { title: string; description: string; columnId: ColumnId }) => string;
-  updateCard: (id: string, input: { title: string; description: string; columnId: ColumnId }) => void;
-  deleteCard: (id: string) => void;
+  hydrate: () => Promise<void>;
+  addCard: (input: { title: string; description: string; columnId: ColumnId }) => Promise<string>;
+  updateCard: (id: string, input: { title: string; description: string; columnId: ColumnId }) => Promise<void>;
+  deleteCard: (id: string) => Promise<void>;
   moveCard: (activeId: string, overId: string | null, overContainer: ColumnId) => void;
   findContainer: (id: string) => ColumnId | undefined;
 };
 
-function removeFromColumns(columns: Columns, cardId: string): Columns {
+function toCard(row: {
+  id: string;
+  title: string;
+  description: string;
+  priority: Priority;
+  due_date: string | null;
+  created_at: string;
+  updated_at: string;
+}): Card {
   return {
-    todo: columns.todo.filter((id) => id !== cardId),
-    doing: columns.doing.filter((id) => id !== cardId),
-    done: columns.done.filter((id) => id !== cardId),
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    priority: row.priority,
+    dueDate: row.due_date,
+    createdAt: Date.parse(row.created_at),
+    updatedAt: Date.parse(row.updated_at),
   };
 }
 
-export const useBoardStore = create<BoardState>()(
-  persist(
-    (set, get) => ({
-      columns: SEED_COLUMNS,
-      cards: SEED_CARDS,
-      hasHydrated: false,
-      setHasHydrated: (value) => set({ hasHydrated: value }),
-      findContainer: (id) => {
-        if (id === "todo" || id === "doing" || id === "done") return id;
-        const { columns } = get();
-        return COLUMN_IDS.find((key) => columns[key].includes(id));
-      },
-      addCard: ({ title, description, columnId }) => {
-        const id = newId();
-        const card: Card = {
-          id,
+function fromRows(rows: Awaited<ReturnType<typeof listBoard>>["cards"]): {
+  cards: Record<string, Card>;
+  columns: Columns;
+} {
+  const cards: Record<string, Card> = {};
+  const columns: Columns = { todo: [], doing: [], done: [] };
+  for (const row of rows) {
+    const card = toCard(row);
+    cards[card.id] = card;
+    columns[row.column_id].push(card.id);
+  }
+  return { cards, columns };
+}
+
+export const useBoardStore = create<BoardState>((set, get) => ({
+  columns: { todo: [], doing: [], done: [] },
+  cards: {},
+  hasHydrated: false,
+  syncing: false,
+  syncError: null,
+
+  setHasHydrated: (value) => set({ hasHydrated: value }),
+
+  hydrate: async () => {
+    set({ syncing: true, syncError: null });
+    try {
+      const result = await listBoard({ data: { boardId: BOARD_ID } });
+      set({ ...fromRows(result.cards), hasHydrated: true, syncing: false });
+    } catch (error) {
+      set({
+        hasHydrated: true,
+        syncing: false,
+        syncError: error instanceof Error ? error.message : "SYNC_FAILED",
+      });
+    }
+  },
+
+  findContainer: (id) => {
+    if (id === "todo" || id === "doing" || id === "done") return id;
+    const { columns } = get();
+    return COLUMN_IDS.find((key) => columns[key].includes(id));
+  },
+
+  addCard: async ({ title, description, columnId }) => {
+    set({ syncing: true, syncError: null });
+    try {
+      const result = await createCard({
+        data: { boardId: BOARD_ID, title: title.trim(), description: description.trim(), columnId },
+      });
+      await get().hydrate();
+      return result.id;
+    } catch (error) {
+      set({ syncing: false, syncError: error instanceof Error ? error.message : "CREATE_FAILED" });
+      throw error;
+    }
+  },
+
+  updateCard: async (id, { title, description, columnId }) => {
+    const existing = get().cards[id];
+    if (!existing) return;
+    set({ syncing: true, syncError: null });
+    try {
+      await updateCard({
+        data: {
+          boardId: BOARD_ID,
+          cardId: id,
           title: title.trim(),
           description: description.trim(),
-          createdAt: Date.now(),
-        };
-        set((state) => ({
-          cards: { ...state.cards, [id]: card },
-          columns: {
-            ...state.columns,
-            [columnId]: [id, ...state.columns[columnId]],
-          },
-        }));
-        return id;
+          columnId,
+          priority: existing.priority,
+          dueDate: existing.dueDate ?? null,
+        },
+      });
+      await get().hydrate();
+    } catch (error) {
+      set({ syncing: false, syncError: error instanceof Error ? error.message : "UPDATE_FAILED" });
+      throw error;
+    }
+  },
+
+  deleteCard: async (id) => {
+    set({ syncing: true, syncError: null });
+    try {
+      await archiveCard({ data: { boardId: BOARD_ID, cardId: id } });
+      await get().hydrate();
+    } catch (error) {
+      set({ syncing: false, syncError: error instanceof Error ? error.message : "ARCHIVE_FAILED" });
+      throw error;
+    }
+  },
+
+  moveCard: (activeId, overId, overContainer) => {
+    const from = get().findContainer(activeId);
+    if (!from) return;
+    const current = get().columns[overContainer].filter((id) => id !== activeId);
+    let insertIndex = current.length;
+    if (overId && overId !== overContainer) {
+      const index = current.indexOf(overId);
+      if (index >= 0) insertIndex = index;
+    }
+    const next = [...current];
+    next.splice(insertIndex, 0, activeId);
+    if (from === overContainer && get().columns[from].every((id, i) => id === next[i])) return;
+    set((state) => ({
+      syncing: true,
+      syncError: null,
+      columns: {
+        ...state.columns,
+        [from]: state.columns[from].filter((id) => id !== activeId),
+        [overContainer]: next,
       },
-      updateCard: (id, { title, description, columnId }) => {
-        set((state) => {
-          const existing = state.cards[id];
-          if (!existing) return state;
-          const currentCol = COLUMN_IDS.find((key) => state.columns[key].includes(id));
-          const nextCards = {
-            ...state.cards,
-            [id]: {
-              ...existing,
-              title: title.trim(),
-              description: description.trim(),
-            },
-          };
-          if (currentCol === columnId) {
-            return { cards: nextCards };
-          }
-          const without = removeFromColumns(state.columns, id);
-          return {
-            cards: nextCards,
-            columns: {
-              ...without,
-              [columnId]: [id, ...without[columnId]],
-            },
-          };
-        });
+    }));
+    void moveCardRemote({
+      data: {
+        boardId: BOARD_ID,
+        cardId: activeId,
+        columnId: overContainer,
+        beforeCardId: next[next.indexOf(activeId) + 1] ?? null,
       },
-      deleteCard: (id) => {
-        set((state) => {
-          const { [id]: _removed, ...rest } = state.cards;
-          return {
-            cards: rest,
-            columns: removeFromColumns(state.columns, id),
-          };
-        });
-      },
-      moveCard: (activeId, overId, overContainer) => {
-        set((state) => {
-          const from = COLUMN_IDS.find((key) => state.columns[key].includes(activeId));
-          if (!from) return state;
-
-          const overItems = state.columns[overContainer].filter((id) => id !== activeId);
-          let insertIndex = overItems.length;
-
-          if (overId && overId !== overContainer) {
-            const idx = overItems.indexOf(overId);
-            if (idx >= 0) insertIndex = idx;
-          }
-
-          const nextOver = [...overItems];
-          nextOver.splice(insertIndex, 0, activeId);
-
-          if (from === overContainer) {
-            const same = state.columns[from];
-            if (same.length === nextOver.length && same.every((id, i) => id === nextOver[i])) {
-              return state;
-            }
-            return {
-              columns: {
-                ...state.columns,
-                [overContainer]: nextOver,
-              },
-            };
-          }
-
-          return {
-            columns: {
-              ...state.columns,
-              [from]: state.columns[from].filter((id) => id !== activeId),
-              [overContainer]: nextOver,
-            },
-          };
-        });
-      },
-    }),
-    {
-      name: "jaryan-board-v1",
-      skipHydration: true,
-      partialize: (state) => ({
-        columns: state.columns,
-        cards: state.cards,
-      }),
-    },
-  ),
-);
+    }).then(() => set({ syncing: false })).catch((error) => {
+      set({ syncing: false, syncError: error instanceof Error ? error.message : "MOVE_FAILED" });
+      void get().hydrate();
+    });
+  },
+}));
