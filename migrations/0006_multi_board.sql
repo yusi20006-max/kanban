@@ -1,6 +1,7 @@
 alter table kanban_cards drop constraint if exists kanban_cards_column_id_check;
 alter table kanban_boards add column if not exists project_key text;
 alter table kanban_boards add column if not exists description text not null default '';
+alter table kanban_boards add column if not exists archived_at timestamptz;
 
 create unique index if not exists kanban_boards_owner_project_key_idx
   on kanban_boards(owner_user_id, project_key)
