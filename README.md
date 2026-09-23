@@ -72,3 +72,9 @@ Transitions and phase results are persisted in `kanban_workflow_events`. Invalid
 The data model now supports isolated boards/projects owned by an authenticated user, custom ordered columns, labels, card checklists, comments, and basic title/description search. The API and MCP layers use the same ownership checks.
 
 The original default board is migrated with Todo/Doing/Done columns; cards are no longer restricted to the original three column IDs.
+
+## Security, audit and observability
+
+Authenticated web requests receive a correlation request ID and a per-user rate limit. Sensitive web and MCP mutations write an audit event with actor, source, action, target, request ID, outcome and error code.
+
+Authorization is board-owner based at the domain boundary, so API/MCP operations cannot cross project ownership. GitHub credentials remain server-only environment configuration.
