@@ -11,6 +11,8 @@ import { linkGithubCard as linkGithub, refreshGithubCard as refreshGithub } from
 import { auditMutation, assertRateLimit } from "@/lib/security.server";
 import { recordPhaseInputSchema, transitionInputSchema } from "@/lib/workflow";
 import { KANBAN_CONTRACT_VERSION, publicErrorCode } from "@/lib/contract";
+import { agentRegistrationSchema } from "@/lib/agent-control-plane/contracts";
+import { registerAgent, unregisterAgent, listAgents, getAgent } from "@/lib/agent-control-plane/registry";
 
 type Guard = () => void | Promise<void>;
 
@@ -40,6 +42,26 @@ async function audited(
 }
 
 export function registerKanbanTools(server: McpServer, userId: string, guard: Guard) {
+  server.registerTool("kanban_register_agent", {
+    description: "Register or refresh an execution agent owned by the authenticated identity.",
+    inputSchema: z.object({ agentId: z.string().trim().min(1).max(128), name: z.string().trim().min(1).max(200), capabilities: z.array(z.string().trim().min(1).max(128)).max(100).default([]), metadata: z.record(z.string(), z.unknown()).default({}) }),
+  }, async (args) => audited(userId, guard, "agent.register", {}, () => registerAgent(userId, agentRegistrationSchema.parse(args))));
+
+  server.registerTool("kanban_unregister_agent", {
+    description: "Disable an owned execution agent.",
+    inputSchema: z.object({ agentId: z.string().trim().min(1).max(128) }),
+  }, async ({ agentId }) => audited(userId, guard, "agent.unregister", {}, () => unregisterAgent(userId, agentId)));
+
+  server.registerTool("kanban_list_agents", {
+    description: "List execution agents owned by the authenticated identity.",
+    inputSchema: z.object({}),
+  }, async () => { try { await guard(); await assertRateLimit(userId, "mcp"); return ok(await listAgents(userId)); } catch (e) { return fail(e); } });
+
+  server.registerTool("kanban_get_agent", {
+    description: "Read one owned execution agent.",
+    inputSchema: z.object({ agentId: z.string().trim().min(1).max(128) }),
+  }, async ({ agentId }) => { try { await guard(); await assertRateLimit(userId, "mcp"); return ok(await getAgent(userId, agentId)); } catch (e) { return fail(e); } });
+
   server.registerTool("kanban_list_boards", {
     description: "List Kanban boards owned by the authenticated identity.",
     inputSchema: z.object({}),

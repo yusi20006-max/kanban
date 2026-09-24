@@ -13,6 +13,8 @@ import {
   recordWorkflowPhase, transitionAgent,
 } from "@/lib/kanban-domain";
 import { recordPhaseInputSchema, transitionInputSchema } from "@/lib/workflow";
+import { agentRegistrationSchema } from "@/lib/agent-control-plane/contracts";
+import { registerAgent, unregisterAgent, listAgents, getAgent } from "@/lib/agent-control-plane/registry";
 
 type RequestContext = { userId: string; requestId: string };
 
@@ -125,3 +127,19 @@ export const addCommentFn = createServerFn({ method: "POST" }).middleware([authM
 export const searchCardsFn = createServerFn({ method: "GET" }).middleware([authMiddleware])
   .inputValidator(z.object({ boardId: z.string().min(1).max(128), query: z.string().trim().min(1).max(200) }))
   .handler(async ({ data, context }) => searchCards(context.userId, data));
+
+
+export const registerAgentFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(agentRegistrationSchema)
+  .handler(async ({ data, context }) => audited(context, "agent.register", {}, () => registerAgent(context.userId, data)));
+
+export const unregisterAgentFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ agentId: z.string().trim().min(1).max(128) }))
+  .handler(async ({ data, context }) => audited(context, "agent.unregister", {}, () => unregisterAgent(context.userId, data.agentId)));
+
+export const listAgentsFn = createServerFn({ method: "GET" }).middleware([authMiddleware])
+  .handler(async ({ context }) => listAgents(context.userId));
+
+export const getAgentFn = createServerFn({ method: "GET" }).middleware([authMiddleware])
+  .inputValidator(z.object({ agentId: z.string().trim().min(1).max(128) }))
+  .handler(async ({ data, context }) => getAgent(context.userId, data.agentId));
