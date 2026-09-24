@@ -191,7 +191,7 @@ export function registerKanbanTools(server: McpServer, userId: string, guard: Gu
     description: "Link an owned card to a GitHub repository Issue and/or Pull Request.",
     inputSchema: z.object({
       boardId: z.string().min(1).max(128), cardId: z.string().min(1).max(128),
-      repo: z.string().regex(/^[^/]+\\/[^/]+$/), issueNumber: z.number().int().positive().nullable().default(null),
+      repo: z.string().regex(new RegExp("^[^/]+/[^/]+$")), issueNumber: z.number().int().positive().nullable().default(null),
       prNumber: z.number().int().positive().nullable().default(null),
     }),
   }, async (args) => audited(userId, guard, "github.link", args, () => linkGithub(userId, args)));
