@@ -21,7 +21,7 @@ import { delegateTask, listDelegations, linkChildExecution } from "@/lib/agent-c
 import { listExecutionHistory, listTaskHistory } from "@/lib/agent-control-plane/history";
 import { ingestIssueToCard, cardToBranch, branchToPr, refreshDeliveryCi, ciFailureToTask, verifyMerge, releaseToDone } from "@/lib/github-delivery.server";
 import { registerAgent, unregisterAgent, listAgents, getAgent } from "@/lib/agent-control-plane/registry";
-import { assignAgentRole, listAgentRoles, findAgentsForRole } from "@/lib/agent-control-plane/orchestration";
+import { assignAgentRole, listAgentRoles, findAgentsForRole, createPlannerGraph, getPlannerGraph } from "@/lib/agent-control-plane/orchestration";
 
 type Guard = () => void | Promise<void>;
 
@@ -135,6 +135,16 @@ export function registerKanbanTools(server: McpServer, userId: string, guard: Gu
     description: "Disable an owned execution agent.",
     inputSchema: z.object({ agentId: z.string().trim().min(1).max(128) }),
   }, async ({ agentId }) => audited(userId, guard, "agent.unregister", {}, () => unregisterAgent(userId, agentId)));
+
+  server.registerTool("kanban_create_planner_graph", {
+    description: "Persist a high-level task decomposition with roles, acceptance criteria, and dependencies.",
+    inputSchema: z.object({ title:z.string().trim().min(1).max(500), sourceTaskId:z.string().trim().min(1).max(128).nullable().default(null), nodes:z.array(z.object({ taskId:z.string().trim().min(1).max(128), title:z.string().trim().min(1).max(500), role:z.enum(["planner","coder","test","security","review"]).nullable().default(null), acceptanceCriteria:z.array(z.string().trim().min(1).max(2000)).max(50).default([]), dependsOn:z.array(z.string().trim().min(1).max(128)).max(100).default([]) })).min(1).max(200) }),
+  }, async (args) => audited(userId, guard, "orchestration.plan.create", {}, () => createPlannerGraph(userId,args)));
+
+  server.registerTool("kanban_get_planner_graph", {
+    description: "Read an owned persisted planner graph.",
+    inputSchema: z.object({ planId:z.string().trim().min(1).max(128) }),
+  }, async ({planId}) => { try { await guard(); await assertRateLimit(userId,"mcp"); return ok(await getPlannerGraph(userId,planId)); } catch(e){ return fail(e); } });
 
   server.registerTool("kanban_assign_agent_role", {
     description: "Assign one machine-readable orchestration role and capabilities to an owned agent.",
