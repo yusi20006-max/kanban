@@ -30,7 +30,7 @@ export async function claimTask(userId: string, input: unknown) {
   if (!agent[0]) throw new AgentRegistryError("AGENT_NOT_FOUND");
   if (agent[0].status === "disabled") throw new AgentRegistryError("AGENT_DISABLED");
   if (data.idempotencyKey) {
-    const prior = await sql.query<{result: unknown}>("select result from kanban_idempotency where actor_user_id=$1 and operation_key=$2 and action='agent.claim'",[userId,data.idempotencyKey]);
+    const prior = await sql.query<{result:{taskId:string;agentId:string;leaseId:string;acquiredAt:string;expiresAt:string}}>("select result from kanban_idempotency where actor_user_id=$1 and operation_key=$2 and action='agent.claim'",[userId,data.idempotencyKey]);
     if (prior[0]) return prior[0].result;
   }
   return sql.transaction(async (tx) => {
