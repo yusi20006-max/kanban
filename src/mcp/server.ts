@@ -8,7 +8,7 @@ if (!token) throw new Error("KANBAN_MCP_TOKEN is required; refusing unauthentica
 
 const buildServer = () => {
   const server = new McpServer({ name: "yasin-kanban", version: "1.1.0" });
-  registerKanbanTools(server, userId, () => {
+  try {\n    registerKanbanTools(server, userId, () => {
     if (process.env.KANBAN_MCP_TOKEN?.trim() !== token) throw new Error("MCP_AUTH_FAILED");
   });
   return server;
