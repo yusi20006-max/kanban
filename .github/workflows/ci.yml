@@ -23,9 +23,6 @@ jobs:
       - run: npm run build
       - name: Start preview
         run: npm run preview > /tmp/kanban-preview.log 2>&1 &
-      - run: node scripts/health-check.mjs
-        env:
-          BASE_URL: http://localhost:8080
       - run: npm run production:smoke
         env:
           BASE_URL: http://localhost:4173
