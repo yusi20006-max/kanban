@@ -17,6 +17,7 @@ export const archiveCardInputSchema = z.object({ boardId: boardIdSchema, cardId:
 export const moveCardInputSchema = z.object({
   boardId: boardIdSchema, cardId: cardIdSchema, columnId: columnIdSchema,
   beforeCardId: cardIdSchema.nullable().default(null),
+  idempotencyKey: z.string().trim().min(1).max(200).nullable().default(null),
 });
 export type CardInput = z.infer<typeof cardInputSchema>;
 export type UpdateCardInput = z.infer<typeof updateCardInputSchema>;
@@ -64,6 +65,10 @@ export async function listBoard(userId: string, boardId: string) {
 export async function createCard(userId:string,data:CardInput) {
   const sql=await assertBoardOwner(userId,data.boardId);
   await assertColumnOnBoard(sql,data.boardId,data.columnId);
+  if (data.idempotencyKey) {
+    const prior = await sql.query<{ result: { id: string } }>("select result from kanban_idempotency where actor_user_id=$1 and operation_key=$2 and action=$3",[userId,data.idempotencyKey,"card.create"]);
+    if (prior[0]) return prior[0].result;
+  }
   const id=crypto.randomUUID();
   const rows=await sql.query<{position:number}>(
     "select coalesce(max(position),-1)+1 as position from kanban_cards where board_id=$1 and column_id=$2 and archived_at is null",
@@ -99,17 +104,22 @@ export async function moveCard(userId:string,data:MoveCardInput) {
   const exists=await sql.query<{id:string}>("select id from kanban_cards where id=$1 and board_id=$2 and archived_at is null",[data.cardId,data.boardId]);
   if(!exists[0]) throw new DomainError("CARD_NOT_FOUND");
   if(data.beforeCardId===data.cardId) throw new Error("INVALID_MOVE_TARGET");
+  if(data.idempotencyKey){const prior=await sql.query<{result:{ok:true}}>("select result from kanban_idempotency where actor_user_id=$1 and operation_key=$2 and action=$3",[userId,data.idempotencyKey,"card.move"]);if(prior[0])return prior[0].result;}
   if(data.beforeCardId){
     const target=await sql.query<{id:string}>("select id from kanban_cards where id=$1 and board_id=$2 and column_id=$3 and archived_at is null",[data.beforeCardId,data.boardId,data.columnId]);
     if(!target[0]) throw new Error("INVALID_MOVE_TARGET");
   }
-  await sql.query("update kanban_cards set column_id=$1,updated_at=now() where id=$2 and board_id=$3",[data.columnId,data.cardId,data.boardId]);
   const ordered=await sql.query<{id:string}>("select id from kanban_cards where board_id=$1 and column_id=$2 and archived_at is null and id<>$3 order by position,created_at",[data.boardId,data.columnId,data.cardId]);
   let position=ordered.length;
   if(data.beforeCardId){ const idx=ordered.findIndex((row)=>row.id===data.beforeCardId); if(idx<0) throw new Error("INVALID_MOVE_TARGET"); position=idx; }
   const ids=[...ordered]; ids.splice(position,0,{id:data.cardId});
-  for(let i=0;i<ids.length;i+=1) await sql.query("update kanban_cards set position=$1,updated_at=now() where id=$2 and board_id=$3",[i,ids[i].id,data.boardId]);
-  return {ok:true};
+  const value={ok:true as const};
+  return sql.transaction(async (tx) => {
+    await tx.query("update kanban_cards set column_id=$1,updated_at=now() where id=$2 and board_id=$3",[data.columnId,data.cardId,data.boardId]);
+    for(let i=0;i<ids.length;i+=1) await tx.query("update kanban_cards set position=$1,updated_at=now() where id=$2 and board_id=$3",[i,ids[i].id,data.boardId]);
+    if(data.idempotencyKey) await tx.query("insert into kanban_idempotency(actor_user_id,operation_key,action,result) values($1,$2,$3,$4::jsonb)",[userId,data.idempotencyKey,"card.move",JSON.stringify(value)]);
+    return value;
+  });
 }
 
 export async function transitionAgent(userId:string,data:z.infer<typeof transitionInputSchema>) {
@@ -119,12 +129,17 @@ export async function transitionAgent(userId:string,data:z.infer<typeof transiti
     [data.cardId,data.boardId,userId],
   );
   const current=rows[0]; if(!current) throw new DomainError("CARD_NOT_FOUND");
+  if(data.idempotencyKey){const prior=await sql.query<{result:unknown}>("select result from kanban_idempotency where actor_user_id=$1 and operation_key=$2 and action=$3",[userId,data.idempotencyKey,"workflow.transition"]);if(prior[0])return prior[0].result;}
   assertTransition(current.agent_state,data.toState);
   const phase=data.phase??current.workflow_phase;
-  await sql.query("update kanban_cards set agent_state=$1,workflow_phase=$2,updated_at=now() where id=$3 and board_id=$4",[data.toState,phase,data.cardId,data.boardId]);
-  await sql.query("insert into kanban_workflow_events(id,card_id,phase,agent_state,attempt,result) values($1,$2,$3,$4,(select count(*)+1 from kanban_workflow_events where card_id=$2 and phase=$3),$5)",
-    [crypto.randomUUID(),data.cardId,phase,data.toState,data.result]);
-  return {cardId:data.cardId,fromState:current.agent_state,toState:data.toState,phase};
+  const value={cardId:data.cardId,fromState:current.agent_state,toState:data.toState,phase};
+  return sql.transaction(async (tx) => {
+    const updated=await tx.query("update kanban_cards set agent_state=$1,workflow_phase=$2,updated_at=now() where id=$3 and board_id=$4 and agent_state=$5",[data.toState,phase,data.cardId,data.boardId,current.agent_state]);
+    if(updated.length===0) throw new Error("CONCURRENT_AGENT_STATE_CHANGE");
+    await tx.query("insert into kanban_workflow_events(id,card_id,phase,agent_state,attempt,result) values($1,$2,$3,$4,(select coalesce(max(attempt),0)+1 from kanban_workflow_events where card_id=$2 and phase=$3),$5)",[crypto.randomUUID(),data.cardId,phase,data.toState,data.result]);
+    if(data.idempotencyKey) await tx.query("insert into kanban_idempotency(actor_user_id,operation_key,action,result) values($1,$2,$3,$4::jsonb)",[userId,data.idempotencyKey,"workflow.transition",JSON.stringify(value)]);
+    return value;
+  });
 }
 
 export async function recordWorkflowPhase(userId:string,data:z.infer<typeof recordPhaseInputSchema>) {
