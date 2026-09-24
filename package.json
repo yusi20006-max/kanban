@@ -26,7 +26,8 @@
     "health:check": "node scripts/health-check.mjs",
     "mcp:http": "node --experimental-strip-types src/mcp/http-server.ts",
     "mcp:health": "node scripts/health-check.mjs",
-    "mcp:http:smoke": "node scripts/mcp-http-smoke.mjs"
+    "mcp:http:smoke": "node scripts/mcp-http-smoke.mjs",
+    "production:smoke": "node scripts/production-smoke.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
