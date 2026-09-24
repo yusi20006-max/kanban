@@ -27,9 +27,11 @@ async function githubRequest<T>(path: string): Promise<T> {
     },
   });
   if (!response.ok) {
-    if (response.status === 401 || response.status === 403) throw new GithubIntegrationError("GITHUB_AUTH_OR_RATE_LIMIT");
+    if (response.status === 401) throw new GithubIntegrationError("GITHUB_AUTH");
+    if (response.status === 403) throw new GithubIntegrationError(response.headers.get("x-ratelimit-remaining") === "0" ? "GITHUB_RATE_LIMIT" : "GITHUB_FORBIDDEN");
     if (response.status === 404) throw new GithubIntegrationError("GITHUB_NOT_FOUND");
     if (response.status === 429) throw new GithubIntegrationError("GITHUB_RATE_LIMIT");
+    if (response.status >= 500) throw new GithubIntegrationError("GITHUB_TRANSIENT");
     throw new GithubIntegrationError("GITHUB_HTTP_" + response.status);
   }
   return response.json() as Promise<T>;
@@ -37,7 +39,7 @@ async function githubRequest<T>(path: string): Promise<T> {
 
 type GithubIssue = { state: string; html_url: string; number: number };
 type GithubPr = { state: string; merged: boolean; html_url: string; number: number; head: { sha: string } };
-type WorkflowRun = { id: number; status: string; conclusion: string | null; html_url: string };
+type WorkflowRun = { id: number; status: string; conclusion: string | null; html_url: string; updated_at?: string; created_at?: string };
 
 export async function linkGithubCard(userId: string, data: {
   boardId: string; cardId: string; repo: string; issueNumber?: number | null; prNumber?: number | null;
@@ -93,7 +95,7 @@ export async function refreshGithubCard(userId: string, data: { boardId: string;
     const runs = await githubRequest<{ workflow_runs: WorkflowRun[] }>(
       "/repos/" + card.github_repo + "/actions/runs?head_sha=" + encodeURIComponent(pr.head.sha) + "&per_page=20",
     );
-    const run = runs.workflow_runs[0];
+    const run = [...runs.workflow_runs].sort((a,b) => String(b.updated_at ?? b.created_at ?? "").localeCompare(String(a.updated_at ?? a.created_at ?? "")))[0];
     if (run) {
       workflowRunId = run.id;
       ciState = run.status === "completed" ? (run.conclusion ?? "unknown") : run.status;
@@ -107,6 +109,8 @@ export async function refreshGithubCard(userId: string, data: { boardId: string;
     [pr?.head.sha ?? null, issue?.state ?? null, pr?.state ?? null, pr?.merged ?? null,
      workflowRunId, ciState, data.cardId, data.boardId],
   );
+  const syncedAt = new Date().toISOString();
+  const staleAfterMs = Number(process.env.GITHUB_SYNC_STALE_MS || 300000);
   return {
     repo: card.github_repo,
     issueState: issue?.state ?? null,
@@ -115,6 +119,8 @@ export async function refreshGithubCard(userId: string, data: { boardId: string;
     commitSha: pr?.head.sha ?? null,
     ciState,
     workflowRunId,
-    syncedAt: new Date().toISOString(),
+    syncedAt,
+    stale: false,
+    staleAfterMs,
   };
 }
