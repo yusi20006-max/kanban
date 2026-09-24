@@ -51,6 +51,7 @@ do {
   const params = cursor ? { cursor } : {};
   child.stdin.write(JSON.stringify({ jsonrpc: "2.0", id: requestId, method: "tools/list", params }) + "\n");
   const tools = await waitForResponse(requestId);
+  if (tools.error) throw new Error("MCP tools/list failed: " + JSON.stringify(tools.error) + "; stderr: " + stderr.trim());
   names.push(...(tools.result?.tools ?? []).map((tool) => tool.name));
   cursor = tools.result?.nextCursor;
   requestId += 1;
