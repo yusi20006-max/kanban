@@ -41,10 +41,19 @@ const init = await waitForResponse(1);
 if (!init.result?.serverInfo) throw new Error("MCP initialize did not return serverInfo");
 
 child.stdin.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized", params: {} }) + "\n");
-child.stdin.write(JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }) + "\n");
 
-const tools = await waitForResponse(2);
-const names = (tools.result?.tools ?? []).map((tool) => tool.name);
+const names = [];
+let cursor;
+let requestId = 2;
+do {
+  const params = cursor ? { cursor } : {};
+  child.stdin.write(JSON.stringify({ jsonrpc: "2.0", id: requestId, method: "tools/list", params }) + "\n");
+  const tools = await waitForResponse(requestId);
+  names.push(...(tools.result?.tools ?? []).map((tool) => tool.name));
+  cursor = tools.result?.nextCursor;
+  requestId += 1;
+} while (cursor);
+
 const expected = [
   "kanban_list_boards", "kanban_get_board", "kanban_create_card",
   "kanban_update_card", "kanban_move_card", "kanban_archive_card", "kanban_link_github", "kanban_refresh_github", "kanban_transition_agent", "kanban_record_phase", "kanban_create_board", "kanban_update_board", "kanban_archive_board", "kanban_upsert_column", "kanban_add_label", "kanban_set_card_label", "kanban_add_checklist_item", "kanban_set_checklist_item", "kanban_add_comment", "kanban_search_cards",
