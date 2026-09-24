@@ -1,0 +1,1 @@
+import test from "node:test";import assert from "node:assert/strict";test("failed tests block delivery",()=>assert.throws(()=>{throw new Error("TEST_GATE_FAILED")}));

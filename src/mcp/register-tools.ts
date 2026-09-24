@@ -20,6 +20,7 @@ import { bottleneckInputSchema, detectBottlenecks } from "@/lib/observability/bo
 import { failureDetectionInputSchema, detectFailure, listFailureSignals } from "@/lib/self-healing/failure-detection";
 import { createRemediationTask, listRemediationTasks } from "@/lib/self-healing/remediation";
 import { assignAndStartRepair } from "@/lib/self-healing/repair-loop";
+import { prepareAutoDelivery } from "@/lib/self-healing/delivery-loop";
 import { agentRegistrationSchema, heartbeatSchema } from "@/lib/agent-control-plane/contracts";
 import { heartbeatAgent, listAgentsWithLiveness } from "@/lib/agent-control-plane/liveness";
 import { claimTaskSchema } from "@/lib/agent-control-plane/contracts";
@@ -67,6 +68,8 @@ export function registerKanbanTools(server: McpServer, userId: string, guard: Gu
   server.registerTool("kanban_list_remediation_tasks",{description:"List remediation chains owned by the authenticated user.",inputSchema:z.object({})},async()=>{try{await guard();await assertRateLimit(userId,"mcp");return ok(await listRemediationTasks(userId));}catch(e){return fail(e);}});
 
   server.registerTool("kanban_assign_and_start_repair",{description:"Assign an active remediation to a capable ready agent and start a leased execution.",inputSchema:z.object({remediationId:z.string().trim().min(1).max(128),capability:z.string().trim().min(1).max(128).optional(),agentId:z.string().trim().min(1).max(128).optional(),leaseTtlSeconds:z.number().int().min(1).max(86400).default(300),timeoutSeconds:z.number().int().min(1).max(86400).nullable().default(null)})},async(args)=>{try{await guard();await assertRateLimit(userId,"mcp");return ok(await assignAndStartRepair(userId,args));}catch(e){return fail(e);}});
+
+  server.registerTool("kanban_prepare_auto_delivery",{description:"Require passing tests, then create or refresh the Phase 9 GitHub PR and CI gate.",inputSchema:z.object({boardId:z.string().min(1),cardId:z.string().min(1),repo:z.string().min(1).refine(v=>v.split("/").length===2),testsPassed:z.boolean(),title:z.string().optional(),body:z.string().optional()})},async(args)=>{try{await guard();await assertRateLimit(userId,"mcp");return ok(await prepareAutoDelivery(userId,args));}catch(e){return fail(e);}});
 
   server.registerTool("kanban_record_telemetry",{description:"Record an authenticated structured execution telemetry event.",inputSchema:z.object({taskId:z.string().nullable().default(null),executionId:z.string().nullable().default(null),agentId:z.string().nullable().default(null),eventType:z.string().min(1).max(128),fromState:z.string().nullable().default(null),toState:z.string().nullable().default(null),payload:z.record(z.string(),z.unknown()).default({})})},async(args)=>audited(userId,guard,"observability.telemetry",{},()=>recordTelemetry(userId,args)));
   server.registerTool("kanban_list_telemetry",{description:"List owned structured execution telemetry.",inputSchema:z.object({taskId:z.string().optional(),executionId:z.string().optional(),agentId:z.string().optional(),eventType:z.string().optional(),limit:z.number().int().min(1).max(1000).default(200)})},async(args)=>{try{await guard();await assertRateLimit(userId,"mcp");return ok(await listTelemetry(userId,args));}catch(e){return fail(e);}});

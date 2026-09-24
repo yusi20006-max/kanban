@@ -1,0 +1,3 @@
+import { z } from "zod";import { branchToPr,refreshDeliveryCi } from "@/lib/github-delivery.server";
+const schema=z.object({boardId:z.string().min(1),cardId:z.string().min(1),repo:z.string().min(1).refine(v=>v.split("/").length===2),testsPassed:z.boolean(),title:z.string().optional(),body:z.string().optional()});
+export async function prepareAutoDelivery(userId:string,input:unknown){const d=schema.parse(input);if(!d.testsPassed)throw new Error("TEST_GATE_FAILED");const pr=await branchToPr(userId,d);const ci=await refreshDeliveryCi(userId,{boardId:d.boardId,cardId:d.cardId,repo:d.repo,prNumber:pr.prNumber});return {prNumber:pr.prNumber,prUrl:pr.prUrl??null,ciRunId:ci.runId,ciState:ci.ciState,stale:ci.stale,deliveryGate:"ci_required"};}
