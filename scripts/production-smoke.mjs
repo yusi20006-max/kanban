@@ -16,10 +16,21 @@ async function fetchWithRetry(url, attempts = 60, delayMs = 500) {
 }
 
 async function expect(path, predicate, label) {
-  const response = await fetchWithRetry(base + path);
-  const body = await response.text();
-  if (!predicate(response, body)) throw new Error(label + " failed: " + response.status + " " + body.slice(0, 300));
-  console.log(label + " PASS");
+  let lastResponse;
+  let lastBody = "";
+  for (let attempt = 1; attempt <= 60; attempt += 1) {
+    const response = await fetchWithRetry(base + path);
+    const body = await response.text();
+    lastResponse = response;
+    lastBody = body;
+    if (predicate(response, body)) {
+      console.log(label + " PASS");
+      return;
+    }
+    if (response.status !== 503 || attempt === 60) break;
+    await sleep(500);
+  }
+  throw new Error(label + " failed: " + lastResponse.status + " " + lastBody.slice(0, 300));
 }
 
 await expect("/health/live", (r) => r.ok, "liveness");
