@@ -61,6 +61,58 @@ function pgliteBootstrapPlugin(): Plugin {
  * and returns the 302 / completion HTML. Deployed apps do not use the popup
  * (full-page OAuth redirect), so `apply: "serve"` is enough.
  */
+function healthPreviewPlugin(): Plugin {
+  return {
+    name: "app-builder:health-preview",
+    configurePreviewServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        const pathOnly = (req.url ?? "").split("?", 1)[0] ?? "";
+        if (pathOnly !== "/health/live" && pathOnly !== "/health/ready") {
+          next();
+          return;
+        }
+
+        if ((req.method ?? "GET").toUpperCase() !== "GET") {
+          res.statusCode = 405;
+          res.setHeader("content-type", "text/plain; charset=utf-8");
+          res.end("Method Not Allowed");
+          return;
+        }
+
+        if (pathOnly === "/health/live") {
+          res.statusCode = 200;
+          res.setHeader("content-type", "application/json; charset=utf-8");
+          res.setHeader("cache-control", "no-store");
+          res.end(JSON.stringify({
+            ok: true,
+            status: "live",
+            version: process.env.APP_VERSION ?? "dev",
+          }));
+          return;
+        }
+
+        try {
+          const { previewDatabaseReady } = await import("./scripts/preview-health.mjs");
+          const database = await previewDatabaseReady(server.config.root);
+          res.statusCode = 200;
+          res.setHeader("content-type", "application/json; charset=utf-8");
+          res.setHeader("cache-control", "no-store");
+          res.end(JSON.stringify({
+            ok: true,
+            status: "ready",
+            database,
+            version: process.env.APP_VERSION ?? "dev",
+          }));
+        } catch {
+          res.statusCode = 503;
+          res.setHeader("content-type", "application/json; charset=utf-8");
+          res.setHeader("cache-control", "no-store");
+          res.end(JSON.stringify({ ok: false, status: "not-ready" }));
+        }
+      });
+    },
+  };
+}
 function authPopupPlugin(): Plugin {
   return {
     name: "app-builder:auth-popup",
@@ -161,6 +213,7 @@ export default defineConfig(({ command, isPreview }) => ({
     pgliteBootstrapPlugin(),
     // Before tanstackStart so /auth/popup never falls through to the SPA.
     authPopupPlugin(),
+    healthPreviewPlugin(),
     // Dev-only /__app-env, read by scripts/check-auth-invariant.mjs.
     appEnvPlugin(),
     // PWA head + ?install=1 tutorial page; runs before Start/Nitro.
