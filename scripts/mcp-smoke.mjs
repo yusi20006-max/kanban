@@ -5,7 +5,9 @@ const child = spawn("npx", ["tsx", "src/mcp/server.ts"], {
   stdio: ["pipe", "pipe", "pipe"],
 });
 
-let buffer = "";\nlet stderr = "";\nchild.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
+let buffer = "";
+let stderr = "";
+child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
 const waitForResponse = (id) => new Promise((resolve, reject) => {
   const timer = setTimeout(() => { cleanup(); reject(new Error("MCP response timeout")); }, 15000);
   const onData = (chunk) => {
