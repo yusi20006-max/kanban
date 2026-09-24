@@ -1,0 +1,57 @@
+import { z } from "zod";
+import { getSql } from "@/lib/db";
+import { agentRegistrationSchema, type AgentStatus } from "./contracts";
+
+export class AgentRegistryError extends Error {
+  constructor(public readonly code: "AGENT_NOT_FOUND" | "AGENT_DISABLED") { super(code); this.name = "AgentRegistryError"; }
+}
+
+export async function registerAgent(userId: string, input: z.infer<typeof agentRegistrationSchema>) {
+  const data = agentRegistrationSchema.parse(input);
+  const sql = await getSql();
+  const existing = await sql.query<{ id: string; status: AgentStatus }>(
+    "select id,status from kanban_agents where owner_user_id=$1 and id=$2",
+    [userId, data.agentId],
+  );
+  if (existing[0]?.status === "disabled") throw new AgentRegistryError("AGENT_DISABLED");
+  if (existing[0]) {
+    await sql.query(
+      "update kanban_agents set name=$1,capabilities=$2::jsonb,metadata=$3::jsonb,status='ready',updated_at=now() where owner_user_id=$4 and id=$5",
+      [data.name, JSON.stringify(data.capabilities), JSON.stringify(data.metadata), userId, data.agentId],
+    );
+    return { id: data.agentId, status: "ready" as const, updated: true };
+  }
+  await sql.query(
+    "insert into kanban_agents(id,owner_user_id,name,capabilities,metadata,status,last_seen_at) values($1,$2,$3,$4::jsonb,$5::jsonb,'ready',now())",
+    [data.agentId, userId, data.name, JSON.stringify(data.capabilities), JSON.stringify(data.metadata)],
+  );
+  return { id: data.agentId, status: "ready" as const, updated: false };
+}
+
+export async function unregisterAgent(userId: string, agentId: string) {
+  const sql = await getSql();
+  const result = await sql.query(
+    "update kanban_agents set status='disabled',updated_at=now() where owner_user_id=$1 and id=$2 and status<>'disabled'",
+    [userId, agentId],
+  );
+  if (!result.length) throw new AgentRegistryError("AGENT_NOT_FOUND");
+  return { id: agentId, status: "disabled" as const };
+}
+
+export async function listAgents(userId: string) {
+  const sql = await getSql();
+  return sql.query(
+    "select id,name,capabilities,metadata,status,last_seen_at,created_at,updated_at from kanban_agents where owner_user_id=$1 order by created_at,id",
+    [userId],
+  );
+}
+
+export async function getAgent(userId: string, agentId: string) {
+  const sql = await getSql();
+  const rows = await sql.query(
+    "select id,name,capabilities,metadata,status,last_seen_at,created_at,updated_at from kanban_agents where owner_user_id=$1 and id=$2",
+    [userId, agentId],
+  );
+  if (!rows[0]) throw new AgentRegistryError("AGENT_NOT_FOUND");
+  return rows[0];
+}
