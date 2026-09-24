@@ -1,6 +1,7 @@
 import { getSql } from "@/lib/db";
 import { heartbeatSchema, type AgentStatus } from "./contracts";
 import { AgentRegistryError } from "./registry";
+import { appendAgentEvent } from "./history";
 
 export const DEFAULT_STALE_AFTER_SECONDS = 60;
 export const DEFAULT_OFFLINE_AFTER_SECONDS = 300;
@@ -27,6 +28,7 @@ export async function heartbeatAgent(userId: string, input: unknown) {
     "update kanban_agents set last_seen_at=$1,status=case when status='busy' then 'busy' else 'ready' end,updated_at=now() where owner_user_id=$2 and id=$3",
     [observedAt.toISOString(), userId, data.agentId],
   );
+  await appendAgentEvent(userId,{agentId:data.agentId,eventType:'heartbeat',fromState:rows[0].status,toState:rows[0].status==='busy'?'busy':'ready',payload:{observedAt:observedAt.toISOString()}});
   return { id: data.agentId, status: rows[0].status === "busy" ? "busy" : "ready", lastSeenAt: observedAt.toISOString() };
 }
 
