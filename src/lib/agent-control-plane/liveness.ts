@@ -2,6 +2,7 @@ import { getSql } from "@/lib/db";
 import { heartbeatSchema, type AgentStatus } from "./contracts";
 import { AgentRegistryError } from "./registry";
 import { appendAgentEvent } from "./history";
+import { recordTelemetry } from "@/lib/observability/telemetry";
 type JsonScalar = string | number | boolean | null;
 type AgentRow = { id:string; name:string; capabilities:string[]; metadata:Record<string,JsonScalar>; status:AgentStatus; last_seen_at:string|null; created_at:string; updated_at:string };
 
@@ -31,6 +32,7 @@ export async function heartbeatAgent(userId: string, input: unknown) {
     [observedAt.toISOString(), userId, data.agentId],
   );
   await appendAgentEvent(userId,{agentId:data.agentId,eventType:'heartbeat',fromState:rows[0].status,toState:rows[0].status==='busy'?'busy':'ready',payload:{observedAt:observedAt.toISOString()}});
+  await recordTelemetry(userId,{agentId:data.agentId,eventType:"agent.heartbeat",fromState:rows[0].status,toState:rows[0].status==='busy'?"busy":"ready",payload:{observedAt:observedAt.toISOString()}});
   return { id: data.agentId, status: rows[0].status === "busy" ? "busy" : "ready", lastSeenAt: observedAt.toISOString() };
 }
 
