@@ -4,6 +4,7 @@ import { executionStatusSchema } from "./contracts";
 import { LeaseError } from "./lease";
 import { AgentRegistryError } from "./registry";
 import { appendAgentEvent } from "./history";
+import { recordTelemetry } from "@/lib/observability/telemetry";
 
 const startSchema=z.object({executionId:z.string().trim().min(1).max(128),taskId:z.string().trim().min(1).max(128),agentId:z.string().trim().min(1).max(128),timeoutSeconds:z.number().int().min(1).max(86_400).nullable().default(null)});
 const finishSchema=z.object({executionId:z.string().trim().min(1).max(128),status:executionStatusSchema.extract(["succeeded","failed","timed_out","cancelled"]),result:z.record(z.string(),z.unknown()).nullable().default(null),error:z.record(z.string(),z.unknown()).nullable().default(null)});
@@ -29,6 +30,7 @@ export async function startExecution(userId:string,input:unknown){
     await tx.query("update kanban_agent_tasks set status='running',updated_at=now() where id=$1",[data.taskId]);
     await appendAgentEvent(userId,{taskId:data.taskId,executionId:data.executionId,agentId:data.agentId,eventType:'started',fromState:'claimed',toState:'running',payload:{attempt}},tx);
     await tx.query("update kanban_agents set status='busy',updated_at=now() where owner_user_id=$1 and id=$2",[userId,data.agentId]);
+    await recordTelemetry(userId,{taskId:data.taskId,executionId:data.executionId,agentId:data.agentId,eventType:"execution.started",fromState:"claimed",toState:"running",payload:{attempt}},tx);
     return {executionId:data.executionId,taskId:data.taskId,agentId:data.agentId,attempt,status:"running" as const,startedAt:now};
   });
 }
@@ -45,6 +47,7 @@ export async function finishExecution(userId:string,input:unknown){
     await tx.query("update kanban_agent_tasks set status=$1,updated_at=now() where id=$2 and owner_user_id=$3 and status='running'",[taskStatus,rows[0].task_id,userId]);
     await appendAgentEvent(userId,{taskId:rows[0].task_id,executionId:data.executionId,agentId:rows[0].agent_id,eventType:data.status,fromState:'running',toState:data.status,payload:{result:data.result,error:data.error}},tx);
     await tx.query("update kanban_agents set status='ready',updated_at=now() where owner_user_id=$1 and id=$2 and status='busy'",[userId,rows[0].agent_id]);
+    await recordTelemetry(userId,{taskId:rows[0].task_id,executionId:data.executionId,agentId:rows[0].agent_id,eventType:"execution.finished",fromState:"running",toState:data.status,payload:{result:data.result,error:data.error}},tx);
     return {executionId:data.executionId,status:data.status,endedAt:ended,taskStatus};
   });
 }
