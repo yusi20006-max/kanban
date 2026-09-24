@@ -92,8 +92,11 @@ function healthPreviewPlugin(): Plugin {
             return;
           }
 
-          const { getSql } = await import("./src/lib/db");
-          await getSql();
+          const mod = (await server.ssrLoadModule("/src/lib/db.ts")) as {
+            getSql?: () => Promise<unknown>;
+          };
+          if (typeof mod.getSql !== "function") throw new Error("getSql unavailable");
+          await mod.getSql();
           res.statusCode = 200;
           res.setHeader("content-type", "application/json; charset=utf-8");
           res.setHeader("cache-control", "no-store");
