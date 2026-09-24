@@ -21,7 +21,7 @@ import { delegateTask, listDelegations, linkChildExecution } from "@/lib/agent-c
 import { listExecutionHistory, listTaskHistory } from "@/lib/agent-control-plane/history";
 import { ingestIssueToCard, cardToBranch, branchToPr, refreshDeliveryCi, ciFailureToTask, verifyMerge, releaseToDone } from "@/lib/github-delivery.server";
 import { registerAgent, unregisterAgent, listAgents, getAgent } from "@/lib/agent-control-plane/registry";
-import { assignAgentRole, listAgentRoles, findAgentsForRole, createPlannerGraph, getPlannerGraph, routeSpecializedExecution, getExecutionRole, listSchedulableTasks, scheduleTask, createOrchestrationGate, resolveOrchestrationGate, listOrchestrationGates, assertOrchestrationGatesClear } from "@/lib/agent-control-plane/orchestration";
+import { assignAgentRole, listAgentRoles, findAgentsForRole, createPlannerGraph, getPlannerGraph, routeSpecializedExecution, getExecutionRole, listSchedulableTasks, scheduleTask, createOrchestrationGate, resolveOrchestrationGate, listOrchestrationGates, assertOrchestrationGatesClear, recoverOrchestration } from "@/lib/agent-control-plane/orchestration";
 
 type Guard = () => void | Promise<void>;
 
@@ -135,6 +135,11 @@ export function registerKanbanTools(server: McpServer, userId: string, guard: Gu
     description: "Disable an owned execution agent.",
     inputSchema: z.object({ agentId: z.string().trim().min(1).max(128) }),
   }, async ({ agentId }) => audited(userId, guard, "agent.unregister", {}, () => unregisterAgent(userId, agentId)));
+
+  server.registerTool("kanban_recover_orchestration", {
+    description: "Recover an owned orchestration plan after expired leases or execution timeouts.",
+    inputSchema: z.object({ planId:z.string().trim().min(1).max(128).nullable().default(null) }),
+  }, async ({planId}) => audited(userId, guard, "orchestration.recover", {}, () => recoverOrchestration(userId,planId ?? undefined)));
 
   server.registerTool("kanban_create_orchestration_gate", {
     description: "Create an explicit required review or security gate for an owned task.",
