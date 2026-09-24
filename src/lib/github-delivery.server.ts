@@ -5,7 +5,7 @@ export class GithubDeliveryError extends Error {
   constructor(public readonly code:string,message=code){super(message);this.name="GithubDeliveryError";}
 }
 function token(){const v=process.env.GITHUB_TOKEN?.trim();if(!v)throw new GithubDeliveryError("GITHUB_TOKEN_NOT_CONFIGURED");return v;}
-function repoOf(v:string){if(!/^[^/]+\\/[^/]+$/.test(v))throw new GithubDeliveryError("INVALID_GITHUB_REPO");return v;}
+function repoOf(v:string){if(!new RegExp("^[^/]+/[^/]+$").test(v))throw new GithubDeliveryError("INVALID_GITHUB_REPO");return v;}
 async function gh<T>(path:string,init:RequestInit={}){const r=await fetch("https://api.github.com"+path,{...init,headers:{Authorization:"Bearer "+token(),Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28","Content-Type":"application/json",...(init.headers??{})}});if(!r.ok){if(r.status===404)throw new GithubDeliveryError("GITHUB_NOT_FOUND");if(r.status===401)throw new GithubDeliveryError("GITHUB_AUTH");if(r.status===403||r.status===429)throw new GithubDeliveryError("GITHUB_RATE_LIMIT");throw new GithubDeliveryError("GITHUB_HTTP_"+r.status)}return r.status===204?undefined as T:await r.json() as T;}
 type Issue={number:number;title:string;body:string|null;html_url:string;state:string};
 type Ref={object:{sha:string}};
