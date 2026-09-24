@@ -53,7 +53,7 @@ export async function listBoards(userId: string) {
 }
 
 type BoardColumn = { id:string; name:string; position:number };
-type BoardCard = { id:string; column_id:string; position:number; title:string; description:string; priority:string; due_date:string|null; created_at:string; updated_at:string };
+type BoardCard = { id:string; column_id:string; position:number; title:string; description:string; priority:"low"|"medium"|"high"|"critical"; due_date:string|null; created_at:string; updated_at:string };
 export async function listBoard(userId: string, boardId: string): Promise<{board:{id:string;name:string};columns:BoardColumn[];cards:BoardCard[]}> {
   const sql = await assertBoardOwner(userId, boardId);
   const boards = await sql.query<{ id:string; name:string }>("select id,name from kanban_boards where id=$1",[boardId]);
