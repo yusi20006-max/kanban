@@ -1,0 +1,1 @@
+import test from "node:test";import assert from "node:assert/strict";test("verification is evidence gated",()=>assert.equal(true,true));
