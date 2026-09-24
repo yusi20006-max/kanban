@@ -36,6 +36,7 @@ export const transitionInputSchema = z.object({
   toState: agentStateSchema,
   phase: workflowPhaseSchema.optional(),
   result: z.string().max(20000).default(""),
+  idempotencyKey: z.string().trim().min(1).max(200).nullable().default(null),
 });
 
 export const recordPhaseInputSchema = z.object({

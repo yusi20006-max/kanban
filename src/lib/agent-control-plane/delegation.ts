@@ -32,9 +32,10 @@ export async function delegateTask(userId:string,input:unknown){
   });
 }
 
-export async function listDelegations(userId:string,taskId:string){
+type DelegationRow={id:string;parent_task_id:string;child_task_id:string;parent_execution_id:string|null;child_execution_id:string|null;created_at:string};
+export async function listDelegations(userId:string,taskId:string):Promise<DelegationRow[]>{
   const sql=await getSql();
-  return sql.query("select id,parent_task_id,child_task_id,parent_execution_id,child_execution_id,created_at from kanban_agent_delegations where owner_user_id=$1 and (parent_task_id=$2 or child_task_id=$2) order by created_at",[userId,taskId]);
+  return sql.query<DelegationRow>("select id,parent_task_id,child_task_id,parent_execution_id,child_execution_id,created_at from kanban_agent_delegations where owner_user_id=$1 and (parent_task_id=$2 or child_task_id=$2) order by created_at",[userId,taskId]);
 }
 
 

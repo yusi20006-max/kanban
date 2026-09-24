@@ -2,6 +2,8 @@ import { getSql } from "@/lib/db";
 import { heartbeatSchema, type AgentStatus } from "./contracts";
 import { AgentRegistryError } from "./registry";
 import { appendAgentEvent } from "./history";
+type JsonScalar = string | number | boolean | null;
+type AgentRow = { id:string; name:string; capabilities:string[]; metadata:Record<string,JsonScalar>; status:AgentStatus; last_seen_at:string|null; created_at:string; updated_at:string };
 
 export const DEFAULT_STALE_AFTER_SECONDS = 60;
 export const DEFAULT_OFFLINE_AFTER_SECONDS = 300;
@@ -34,12 +36,14 @@ export async function heartbeatAgent(userId: string, input: unknown) {
 
 export async function listAgentsWithLiveness(userId: string, now = new Date()) {
   const sql = await getSql();
-  const rows = await sql.query<{ id:string; name:string; capabilities:unknown; metadata:unknown; status:AgentStatus; last_seen_at:string|null; created_at:string; updated_at:string }>(
+  const rows = await sql.query<AgentRow>(
     "select id,name,capabilities,metadata,status,last_seen_at,created_at,updated_at from kanban_agents where owner_user_id=$1 order by created_at,id",
     [userId],
   );
   return rows.map((row) => ({
     ...row,
+    capabilities:Array.isArray(row.capabilities)?row.capabilities.map(String):[],
+    metadata:(row.metadata&&typeof row.metadata==="object"?row.metadata:{}) as Record<string,JsonScalar>,
     effectiveStatus: row.status === "disabled" ? "disabled" : row.status === "busy" ? "busy" : deriveLiveness(row.last_seen_at, now),
   }));
 }

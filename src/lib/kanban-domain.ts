@@ -52,13 +52,13 @@ export async function listBoards(userId: string) {
   );
 }
 
-export async function listBoard(userId: string, boardId: string) {
+type BoardColumn = { id:string; name:string; position:number };
+type BoardCard = { id:string; column_id:string; position:number; title:string; description:string; priority:"low"|"medium"|"high"|"critical"; due_date:string|null; created_at:string; updated_at:string };
+export async function listBoard(userId: string, boardId: string): Promise<{board:{id:string;name:string};columns:BoardColumn[];cards:BoardCard[]}> {
   const sql = await assertBoardOwner(userId, boardId);
   const boards = await sql.query<{ id:string; name:string }>("select id,name from kanban_boards where id=$1",[boardId]);
-  const columns = await sql.query("select id,name,position from kanban_columns where board_id=$1 order by position,id",[boardId]);
-  const cards = await sql.query(
-    "select id,column_id,position,title,description,priority,due_date,created_at,updated_at from kanban_cards where board_id=$1 and archived_at is null order by column_id,position,created_at",[boardId],
-  );
+  const columns = await sql.query<BoardColumn>("select id,name,position from kanban_columns where board_id=$1 order by position,id",[boardId]);
+  const cards = await sql.query<BoardCard>("select id,column_id,position,title,description,priority,due_date,created_at,updated_at from kanban_cards where board_id=$1 and archived_at is null order by column_id,position,created_at",[boardId]);
   return { board: boards[0], columns, cards };
 }
 
@@ -132,7 +132,7 @@ export async function transitionAgent(userId:string,data:z.infer<typeof transiti
     [data.cardId,data.boardId,userId],
   );
   const current=rows[0]; if(!current) throw new DomainError("CARD_NOT_FOUND");
-  if(data.idempotencyKey){const prior=await sql.query<{result:unknown}>("select result from kanban_idempotency where actor_user_id=$1 and operation_key=$2 and action=$3",[userId,data.idempotencyKey,"workflow.transition"]);if(prior[0])return prior[0].result;}
+  if(data.idempotencyKey){const prior=await sql.query<{result:{cardId:string;fromState:AgentState;toState:AgentState;phase:string}}>("select result from kanban_idempotency where actor_user_id=$1 and operation_key=$2 and action=$3",[userId,data.idempotencyKey,"workflow.transition"]);if(prior[0])return prior[0].result;}
   assertTransition(current.agent_state,data.toState);
   const phase=data.phase??current.workflow_phase;
   const value={cardId:data.cardId,fromState:current.agent_state,toState:data.toState,phase};
@@ -177,4 +177,4 @@ export async function setCardLabel(userId:string,data:{boardId:string;cardId:str
 export async function addChecklistItem(userId:string,data:{boardId:string;cardId:string;title:string}){const sql=await assertBoardOwner(userId,data.boardId);const card=await sql.query("select id from kanban_cards where id=$1 and board_id=$2",[data.cardId,data.boardId]);if(!card[0])throw new DomainError("CARD_NOT_FOUND");const rows=await sql.query<{position:number}>("select coalesce(max(position),-1)+1 as position from kanban_checklist_items where card_id=$1",[data.cardId]);const id=crypto.randomUUID();await sql.query("insert into kanban_checklist_items(id,card_id,title,position) values($1,$2,$3,$4)",[id,data.cardId,data.title.trim(),Number(rows[0]?.position??0)]);return{id};}
 export async function setChecklistItem(userId:string,data:{boardId:string;cardId:string;itemId:string;completed:boolean}){const sql=await assertBoardOwner(userId,data.boardId);const result=await sql.query("update kanban_checklist_items set completed=$1,updated_at=now() where id=$2 and card_id=$3",[data.completed,data.itemId,data.cardId]);if(result.length===0)throw new Error("CHECKLIST_ITEM_NOT_FOUND");return{ok:true};}
 export async function addComment(userId:string,data:{boardId:string;cardId:string;body:string}){const sql=await assertBoardOwner(userId,data.boardId);const card=await sql.query("select id from kanban_cards where id=$1 and board_id=$2",[data.cardId,data.boardId]);if(!card[0])throw new DomainError("CARD_NOT_FOUND");const id=crypto.randomUUID();await sql.query("insert into kanban_comments(id,card_id,author_user_id,body) values($1,$2,$3,$4)",[id,data.cardId,userId,data.body.trim()]);return{id};}
-export async function searchCards(userId:string,data:{boardId:string;query:string}){const sql=await assertBoardOwner(userId,data.boardId);return sql.query("select id,title,description,column_id,priority,updated_at from kanban_cards where board_id=$1 and archived_at is null and (title ilike $2 or description ilike $2) order by updated_at desc",[data.boardId,"%"+data.query.trim()+"%"]);}
+export async function searchCards(userId:string,data:{boardId:string;query:string}){const sql=await assertBoardOwner(userId,data.boardId);return sql.query<{id:string;title:string;description:string;column_id:string;priority:"low"|"medium"|"high"|"critical";updated_at:string}>("select id,title,description,column_id,priority,updated_at from kanban_cards where board_id=$1 and archived_at is null and (title ilike $2 or description ilike $2) order by updated_at desc",[data.boardId,"%"+data.query.trim()+"%"]);}

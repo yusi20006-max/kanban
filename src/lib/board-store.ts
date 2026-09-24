@@ -74,7 +74,7 @@ function fromRows(rows: Awaited<ReturnType<typeof listBoard>>): {
     columns[column.id] = [];
     columnMeta[column.id] = { title: column.name, hint: "کارت‌های این ستون", tone: column.id };
   }
-  for (const row of rows) {
+  for (const row of rows.cards) {
     const card = toCard(row);
     cards[card.id] = card;
     columns[row.column_id].push(card.id);
