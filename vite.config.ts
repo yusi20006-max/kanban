@@ -92,6 +92,11 @@ function healthPreviewPlugin(): Plugin {
             return;
           }
 
+          // Vite preview serves the already-built Nitro output. The Nitro
+          // health middleware owns readiness there; this fallback only prevents
+          // a preview adapter from turning the endpoint into an HTML 404.
+          // Keep the readiness contract conservative when the DB cannot be
+          // reached from the preview adapter.
           const mod = (await server.ssrLoadModule("/src/lib/db.ts")) as {
             getSql?: () => Promise<unknown>;
           };
