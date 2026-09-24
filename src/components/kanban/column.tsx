@@ -4,10 +4,10 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { Plus } from "lucide-react";
 import { SortableCard, StaticCard } from "@/components/kanban/card-item";
 import { Button } from "@/components/ui/button";
-import { COLUMN_META, type Card, type ColumnId } from "@/lib/board-store";
+import { type Card, type ColumnId, useBoardStore } from "@/lib/board-store";
 import { cn } from "@/lib/utils";
 
-const TONE_CLASS: Record<ColumnId, string> = {
+const TONE_CLASS: Record<string, string> = {
   todo: "bg-todo",
   doing: "bg-doing",
   done: "bg-done",
@@ -98,8 +98,10 @@ function ColumnFrame({
   isOver?: boolean;
   listRef?: (node: HTMLElement | null) => void;
   children: ReactNode;
+  cards?: Record<string, Card>;
+  onOpenCard?: (id: string) => void;
 }) {
-  const meta = COLUMN_META[id];
+  const meta = useBoardStore.getState().columnMeta[id] ?? { title: id, hint: "کارت‌های این ستون", tone: id };
   return (
     <section
       className={cn(
@@ -109,7 +111,7 @@ function ColumnFrame({
       aria-label={meta.title}
     >
       <header className="flex items-center gap-3 px-2 pt-1.5 pb-3">
-        <span className={cn("size-2.5 shrink-0 rounded-full", TONE_CLASS[id])} aria-hidden="true" />
+        <span className={cn("size-2.5 shrink-0 rounded-full", TONE_CLASS[meta.tone] ?? "bg-muted")} aria-hidden="true" />
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold leading-snug text-foreground">{meta.title}</h2>
           <p className="text-xs text-muted-foreground">{meta.hint}</p>

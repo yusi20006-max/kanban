@@ -23,8 +23,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  COLUMN_IDS,
-  COLUMN_META,
   type ColumnId,
   useBoardStore,
 } from "@/lib/board-store";
@@ -51,10 +49,7 @@ export function CardDialog({ state, onClose }: CardDialogProps) {
 
   const open = state.mode !== "closed";
   const editing = state.mode === "edit" ? cards[state.cardId] : undefined;
-  const editingColumn =
-    state.mode === "edit"
-      ? COLUMN_IDS.find((id) => columns[id].includes(state.cardId))
-      : undefined;
+  const editingColumn = state.mode === "edit" ? Object.keys(columns).find((id) => columns[id].includes(state.cardId)) : undefined;
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -72,7 +67,7 @@ export function CardDialog({ state, onClose }: CardDialogProps) {
     } else if (state.mode === "edit" && editing) {
       setTitle(editing.title);
       setDescription(editing.description);
-      setColumnId(editingColumn ?? "todo");
+      setColumnId(editingColumn ?? Object.keys(columns)[0] ?? "");
       setError("");
       setConfirmDelete(false);
     }
@@ -148,7 +143,7 @@ export function CardDialog({ state, onClose }: CardDialogProps) {
               <fieldset className="grid gap-2">
                 <legend className="text-sm font-medium">ستون</legend>
                 <div className="grid grid-cols-3 gap-1.5 rounded-lg bg-secondary p-1">
-                  {COLUMN_IDS.map((id) => (
+                  {Object.keys(columns).map((id) => (
                     <button
                       key={id}
                       type="button"
@@ -160,7 +155,7 @@ export function CardDialog({ state, onClose }: CardDialogProps) {
                           : "text-muted-foreground hover:text-foreground",
                       )}
                     >
-                      {COLUMN_META[id].title}
+                      {useBoardStore.getState().columnMeta[id]?.title ?? id}
                     </button>
                   ))}
                 </div>
