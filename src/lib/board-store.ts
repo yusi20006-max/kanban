@@ -62,9 +62,10 @@ function toCard(row: {
   };
 }
 
-function fromRows(rows: Awaited<ReturnType<typeof listBoard>>["cards"]): {
+function fromRows(rows: Awaited<ReturnType<typeof listBoard>>): {
   cards: Record<string, Card>;
   columns: Columns;
+  columnMeta: Record<ColumnId, ColumnMeta>;
 } {
   const cards: Record<string, Card> = {};
   const columns: Columns = {};
