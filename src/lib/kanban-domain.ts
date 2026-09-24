@@ -52,13 +52,13 @@ export async function listBoards(userId: string) {
   );
 }
 
-export async function listBoard(userId: string, boardId: string) {
+type BoardColumn = { id:string; name:string; position:number };
+type BoardCard = { id:string; column_id:string; position:number; title:string; description:string; priority:string; due_date:string|null; created_at:string; updated_at:string };
+export async function listBoard(userId: string, boardId: string): Promise<{board:{id:string;name:string};columns:BoardColumn[];cards:BoardCard[]}> {
   const sql = await assertBoardOwner(userId, boardId);
   const boards = await sql.query<{ id:string; name:string }>("select id,name from kanban_boards where id=$1",[boardId]);
-  const columns = await sql.query("select id,name,position from kanban_columns where board_id=$1 order by position,id",[boardId]);
-  const cards = await sql.query(
-    "select id,column_id,position,title,description,priority,due_date,created_at,updated_at from kanban_cards where board_id=$1 and archived_at is null order by column_id,position,created_at",[boardId],
-  );
+  const columns = await sql.query<BoardColumn>("select id,name,position from kanban_columns where board_id=$1 order by position,id",[boardId]);
+  const cards = await sql.query<BoardCard>("select id,column_id,position,title,description,priority,due_date,created_at,updated_at from kanban_cards where board_id=$1 and archived_at is null order by column_id,position,created_at",[boardId]);
   return { board: boards[0], columns, cards };
 }
 
