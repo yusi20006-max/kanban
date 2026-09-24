@@ -1,0 +1,2 @@
+create index if not exists kanban_agent_leases_owner_agent_time_idx on kanban_agent_leases(owner_user_id,agent_id,acquired_at,expires_at);
+create index if not exists kanban_agent_executions_owner_agent_time_idx on kanban_agent_executions(owner_user_id,agent_id,started_at,ended_at);
