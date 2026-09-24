@@ -15,6 +15,8 @@ import {
 import { recordPhaseInputSchema, transitionInputSchema } from "@/lib/workflow";
 import { agentRegistrationSchema, heartbeatSchema } from "@/lib/agent-control-plane/contracts";
 import { heartbeatAgent, listAgentsWithLiveness } from "@/lib/agent-control-plane/liveness";
+import { claimTaskSchema } from "@/lib/agent-control-plane/contracts";
+import { claimTask, createAgentTask, releaseLease } from "@/lib/agent-control-plane/lease";
 import { registerAgent, unregisterAgent, listAgents, getAgent } from "@/lib/agent-control-plane/registry";
 
 type RequestContext = { userId: string; requestId: string };
@@ -152,3 +154,16 @@ export const heartbeatAgentFn = createServerFn({ method: "POST" }).middleware([a
 
 export const listAgentsWithLivenessFn = createServerFn({ method: "GET" }).middleware([authMiddleware])
   .handler(async ({ context }) => listAgentsWithLiveness(context.userId));
+
+
+export const createAgentTaskFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ taskId: z.string().trim().min(1).max(128), title: z.string().trim().min(1).max(500), boardId: z.string().trim().min(1).max(128).nullable().default(null), cardId: z.string().trim().min(1).max(128).nullable().default(null) }))
+  .handler(async ({ data, context }) => audited(context, "agent.task.create", {}, () => createAgentTask(context.userId, data)));
+
+export const claimAgentTaskFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(claimTaskSchema)
+  .handler(async ({ data, context }) => audited(context, "agent.claim", {}, () => claimTask(context.userId, data)));
+
+export const releaseAgentLeaseFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ leaseId: z.string().trim().min(1).max(128), agentId: z.string().trim().min(1).max(128) }))
+  .handler(async ({ data, context }) => audited(context, "agent.release", {}, () => releaseLease(context.userId, data.leaseId, data.agentId)));
