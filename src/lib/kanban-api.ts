@@ -21,6 +21,7 @@ import { startExecution, finishExecution } from "@/lib/agent-control-plane/execu
 import { retryExecution, timeoutExecution, cancelExecution } from "@/lib/agent-control-plane/recovery";
 import { delegateTask, listDelegations, linkChildExecution } from "@/lib/agent-control-plane/delegation";
 import { listExecutionHistory, listTaskHistory } from "@/lib/agent-control-plane/history";
+import { ingestIssueToCard, cardToBranch, branchToPr, refreshDeliveryCi, ciFailureToTask, verifyMerge, releaseToDone } from "@/lib/github-delivery.server";
 import { registerAgent, unregisterAgent, listAgents, getAgent } from "@/lib/agent-control-plane/registry";
 
 type RequestContext = { userId: string; requestId: string };
@@ -215,3 +216,26 @@ export const listExecutionHistoryFn = createServerFn({ method: "GET" }).middlewa
 export const listTaskHistoryFn = createServerFn({ method: "GET" }).middleware([authMiddleware])
   .inputValidator(z.object({ taskId:z.string().trim().min(1).max(128) }))
   .handler(async ({ data, context }) => listTaskHistory(context.userId, data.taskId));
+
+
+export const githubIssueToCardFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ boardId:z.string().min(1).max(128), repo:z.string().regex(new RegExp("^[^/]+/[^/]+$")), issueNumber:z.number().int().positive(), columnId:z.string().min(1).max(128) }))
+  .handler(async ({data,context})=>ingestIssueToCard(context.userId,data));
+export const githubCardToBranchFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ boardId:z.string().min(1).max(128), cardId:z.string().min(1).max(128), repo:z.string().regex(new RegExp("^[^/]+/[^/]+$")), base:z.string().trim().min(1).max(255).default("main") }))
+  .handler(async ({data,context})=>cardToBranch(context.userId,data));
+export const githubBranchToPrFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ boardId:z.string().min(1).max(128), cardId:z.string().min(1).max(128), repo:z.string().regex(new RegExp("^[^/]+/[^/]+$")), title:z.string().trim().min(1).max(500).optional(), body:z.string().max(20000).optional(), base:z.string().trim().min(1).max(255).default("main") }))
+  .handler(async ({data,context})=>branchToPr(context.userId,data));
+export const githubRefreshCiFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ boardId:z.string().min(1).max(128), cardId:z.string().min(1).max(128), repo:z.string().regex(new RegExp("^[^/]+/[^/]+$")), prNumber:z.number().int().positive().optional() }))
+  .handler(async ({data,context})=>refreshDeliveryCi(context.userId,data));
+export const githubCiFailureTaskFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ boardId:z.string().min(1).max(128), cardId:z.string().min(1).max(128), repo:z.string().regex(new RegExp("^[^/]+/[^/]+$")), runId:z.number().int().positive(), errorContext:z.string().max(20000).default("") }))
+  .handler(async ({data,context})=>ciFailureToTask(context.userId,data));
+export const githubVerifyMergeFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ boardId:z.string().min(1).max(128), cardId:z.string().min(1).max(128), repo:z.string().regex(new RegExp("^[^/]+/[^/]+$")), prNumber:z.number().int().positive().optional(), expectedSha:z.string().trim().min(7).max(64).optional() }))
+  .handler(async ({data,context})=>verifyMerge(context.userId,data));
+export const githubReleaseDoneFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ boardId:z.string().min(1).max(128), cardId:z.string().min(1).max(128), repo:z.string().regex(new RegExp("^[^/]+/[^/]+$")), tag:z.string().trim().min(1).max(255).optional() }))
+  .handler(async ({data,context})=>releaseToDone(context.userId,data));
