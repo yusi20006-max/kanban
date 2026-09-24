@@ -4,7 +4,7 @@ import { executionStatusSchema } from "./contracts";
 import { LeaseError } from "./lease";
 import { AgentRegistryError } from "./registry";
 
-const startSchema=z.object({executionId:z.string().trim().min(1).max(128),taskId:z.string().trim().min(1).max(128),agentId:z.string().trim().min(1).max(128)});
+const startSchema=z.object({executionId:z.string().trim().min(1).max(128),taskId:z.string().trim().min(1).max(128),agentId:z.string().trim().min(1).max(128),timeoutSeconds:z.number().int().min(1).max(86_400).nullable().default(null)});
 const finishSchema=z.object({executionId:z.string().trim().min(1).max(128),status:executionStatusSchema.extract(["succeeded","failed","timed_out","cancelled"]),result:z.record(z.string(),z.unknown()).nullable().default(null),error:z.record(z.string(),z.unknown()).nullable().default(null)});
 
 async function assertAgent(sql: Awaited<ReturnType<typeof getSql>>, userId:string, agentId:string){
@@ -23,8 +23,8 @@ export async function startExecution(userId:string,input:unknown){
     if(!task[0]) throw new LeaseError("TASK_NOT_FOUND");
     if(!["claimed","running"].includes(task[0].status)) throw new LeaseError("TASK_NOT_CLAIMABLE");
     const attemptRows=await tx.query<{attempt:number|string}>("select coalesce(max(attempt),0)+1 as attempt from kanban_agent_executions where task_id=$1",[data.taskId]);
-    const attempt=Number(attemptRows[0]?.attempt??1); const now=new Date().toISOString();
-    await tx.query("insert into kanban_agent_executions(id,owner_user_id,task_id,agent_id,attempt,status,started_at) values($1,$2,$3,$4,$5,'running',$6)",[data.executionId,userId,data.taskId,data.agentId,attempt,now]);
+    const attempt=Number(attemptRows[0]?.attempt??1); const now=new Date(); const deadline=data.timeoutSeconds ? new Date(now.getTime()+data.timeoutSeconds*1000) : null;
+    await tx.query("insert into kanban_agent_executions(id,owner_user_id,task_id,agent_id,attempt,status,started_at,deadline_at) values($1,$2,$3,$4,$5,'running',$6,$7)",[data.executionId,userId,data.taskId,data.agentId,attempt,now.toISOString(),deadline?.toISOString() ?? null]);
     await tx.query("update kanban_agent_tasks set status='running',updated_at=now() where id=$1",[data.taskId]);
     await tx.query("update kanban_agents set status='busy',updated_at=now() where owner_user_id=$1 and id=$2",[userId,data.agentId]);
     return {executionId:data.executionId,taskId:data.taskId,agentId:data.agentId,attempt,status:"running" as const,startedAt:now};

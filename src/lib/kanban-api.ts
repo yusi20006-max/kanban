@@ -18,6 +18,7 @@ import { heartbeatAgent, listAgentsWithLiveness } from "@/lib/agent-control-plan
 import { claimTaskSchema } from "@/lib/agent-control-plane/contracts";
 import { claimTask, createAgentTask, releaseLease } from "@/lib/agent-control-plane/lease";
 import { startExecution, finishExecution } from "@/lib/agent-control-plane/execution";
+import { retryExecution, timeoutExecution, cancelExecution } from "@/lib/agent-control-plane/recovery";
 import { registerAgent, unregisterAgent, listAgents, getAgent } from "@/lib/agent-control-plane/registry";
 
 type RequestContext = { userId: string; requestId: string };
@@ -171,9 +172,22 @@ export const releaseAgentLeaseFn = createServerFn({ method: "POST" }).middleware
 
 
 export const startExecutionFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
-  .inputValidator(z.object({ executionId: z.string().trim().min(1).max(128), taskId: z.string().trim().min(1).max(128), agentId: z.string().trim().min(1).max(128) }))
+  .inputValidator(z.object({ executionId: z.string().trim().min(1).max(128), taskId: z.string().trim().min(1).max(128), agentId: z.string().trim().min(1).max(128), timeoutSeconds: z.number().int().min(1).max(86400).nullable().default(null) }))
   .handler(async ({ data, context }) => audited(context, "agent.execution.start", {}, () => startExecution(context.userId, data)));
 
 export const finishExecutionFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
   .inputValidator(z.object({ executionId: z.string().trim().min(1).max(128), status: z.enum(["succeeded","failed","timed_out","cancelled"]), result: z.record(z.string(), z.unknown()).nullable().default(null), error: z.record(z.string(), z.unknown()).nullable().default(null) }))
   .handler(async ({ data, context }) => audited(context, "agent.execution.finish", {}, () => finishExecution(context.userId, data)));
+
+
+export const retryExecutionFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ executionId: z.string().trim().min(1).max(128) }))
+  .handler(async ({ data, context }) => audited(context, "agent.execution.retry", {}, () => retryExecution(context.userId, data)));
+
+export const timeoutExecutionFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ executionId: z.string().trim().min(1).max(128) }))
+  .handler(async ({ data, context }) => audited(context, "agent.execution.timeout", {}, () => timeoutExecution(context.userId, data.executionId)));
+
+export const cancelExecutionFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ executionId: z.string().trim().min(1).max(128) }))
+  .handler(async ({ data, context }) => audited(context, "agent.execution.cancel", {}, () => cancelExecution(context.userId, data.executionId)));
