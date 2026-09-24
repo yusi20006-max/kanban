@@ -10,7 +10,7 @@ export const cardIdSchema = z.string().min(1).max(128);
 export const cardInputSchema = z.object({
   boardId: boardIdSchema, columnId: columnIdSchema,
   title: z.string().trim().min(1).max(500), description: z.string().max(10000).default(""),
-  priority: prioritySchema.default("medium"), dueDate: z.string().date().nullable().default(null),
+  priority: prioritySchema.default("medium"), dueDate: z.string().date().nullable().default(null), idempotencyKey: z.string().trim().min(1).max(200).nullable().default(null),
 });
 export const updateCardInputSchema = cardInputSchema.extend({ cardId: cardIdSchema });
 export const archiveCardInputSchema = z.object({ boardId: boardIdSchema, cardId: cardIdSchema });
