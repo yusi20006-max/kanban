@@ -6,6 +6,8 @@ const child = spawn("npx", ["tsx", "src/mcp/server.ts"], {
 });
 
 let buffer = "";
+let stderr = "";
+child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
 const waitForResponse = (id) => new Promise((resolve, reject) => {
   const timer = setTimeout(() => { cleanup(); reject(new Error("MCP response timeout")); }, 15000);
   const onData = (chunk) => {
@@ -41,15 +43,25 @@ const init = await waitForResponse(1);
 if (!init.result?.serverInfo) throw new Error("MCP initialize did not return serverInfo");
 
 child.stdin.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized", params: {} }) + "\n");
-child.stdin.write(JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }) + "\n");
 
-const tools = await waitForResponse(2);
-const names = (tools.result?.tools ?? []).map((tool) => tool.name);
+const names = [];
+let cursor;
+let requestId = 2;
+do {
+  const params = cursor ? { cursor } : {};
+  child.stdin.write(JSON.stringify({ jsonrpc: "2.0", id: requestId, method: "tools/list", params }) + "\n");
+  const tools = await waitForResponse(requestId);
+  if (tools.error) throw new Error("MCP tools/list failed: " + JSON.stringify(tools.error) + "; stderr: " + stderr.trim());
+  names.push(...(tools.result?.tools ?? []).map((tool) => tool.name));
+  cursor = tools.result?.nextCursor;
+  requestId += 1;
+} while (cursor);
+
 const expected = [
   "kanban_list_boards", "kanban_get_board", "kanban_create_card",
   "kanban_update_card", "kanban_move_card", "kanban_archive_card", "kanban_link_github", "kanban_refresh_github", "kanban_transition_agent", "kanban_record_phase", "kanban_create_board", "kanban_update_board", "kanban_archive_board", "kanban_upsert_column", "kanban_add_label", "kanban_set_card_label", "kanban_add_checklist_item", "kanban_set_checklist_item", "kanban_add_comment", "kanban_search_cards",
 ];
-for (const name of expected) if (!names.includes(name)) throw new Error("Missing MCP tool: " + name);
+for (const name of expected) if (!names.includes(name)) throw new Error("Missing MCP tool: " + name + "; available: " + names.join(", ") + "; stderr: " + stderr.trim());
 
 child.kill();
 console.log("MCP smoke: initialize + tools/list PASS");

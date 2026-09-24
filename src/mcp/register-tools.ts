@@ -118,8 +118,8 @@ export function registerKanbanTools(server: McpServer, userId: string, guard: Gu
 
   server.registerTool("kanban_agent_heartbeat", {
     description: "Record an authenticated agent heartbeat and refresh liveness.",
-    inputSchema: z.object({ agentId: z.string().trim().min(1).max(128), observedAt: z.coerce.date().optional() }),
-  }, async (args) => audited(userId, guard, "agent.heartbeat", {}, () => heartbeatAgent(userId, heartbeatSchema.parse(args))));
+    inputSchema: z.object({ agentId: z.string().trim().min(1).max(128), observedAt: z.iso.datetime().optional() }),
+  }, async (args) => audited(userId, guard, "agent.heartbeat", {}, () => heartbeatAgent(userId, heartbeatSchema.parse({ ...args, observedAt: args.observedAt ? new Date(args.observedAt) : undefined }))));
 
   server.registerTool("kanban_list_agents_liveness", {
     description: "List owned agents with deterministic effective liveness status.",
