@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getSql } from "@/lib/db";
 import { claimTaskSchema, taskIdSchema } from "./contracts";
 import { AgentRegistryError } from "./registry";
+import { appendAgentEvent } from "./history";
 
 export class LeaseError extends Error {
   constructor(public readonly code: "TASK_NOT_FOUND" | "TASK_NOT_CLAIMABLE" | "LEASE_NOT_FOUND" | "LEASE_NOT_OWNER") { super(code); this.name = "LeaseError"; }
@@ -45,6 +46,7 @@ export async function claimTask(userId: string, input: unknown) {
     const expiresAt=new Date(acquiredAt.getTime()+data.leaseTtlSeconds*1000);
     await tx.query("insert into kanban_agent_leases(id,owner_user_id,task_id,agent_id,status,acquired_at,expires_at) values($1,$2,$3,$4,'active',$5,$6)",[leaseId,userId,data.taskId,data.agentId,acquiredAt.toISOString(),expiresAt.toISOString()]);
     await tx.query("update kanban_agent_tasks set status='claimed',updated_at=now() where id=$1",[data.taskId]);
+    await appendAgentEvent(userId,{taskId:data.taskId,agentId:data.agentId,eventType:'claimed',fromState:task[0].status,toState:'claimed',payload:{leaseId}},tx);
     const value={taskId:data.taskId,agentId:data.agentId,leaseId,acquiredAt:acquiredAt.toISOString(),expiresAt:expiresAt.toISOString()};
     if(data.idempotencyKey) await tx.query("insert into kanban_idempotency(actor_user_id,operation_key,action,result) values($1,$2,'agent.claim',$3::jsonb)",[userId,data.idempotencyKey,JSON.stringify(value)]);
     return value;
@@ -60,6 +62,7 @@ export async function releaseLease(userId: string, leaseId: string, agentId: str
     if(rows[0].status!=="active") return {leaseId,status:rows[0].status};
     await tx.query("update kanban_agent_leases set status='released',released_at=now() where id=$1",[leaseId]);
     await tx.query("update kanban_agent_tasks set status='pending',updated_at=now() where id=$1 and owner_user_id=$2 and status='claimed'",[rows[0].task_id,userId]);
+    await appendAgentEvent(userId,{taskId:rows[0].task_id,agentId, eventType:'released',fromState:'claimed',toState:'pending',payload:{leaseId}},tx);
     return {leaseId,status:"released" as const,taskId:rows[0].task_id};
   });
 }
