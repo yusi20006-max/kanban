@@ -1,0 +1,1 @@
+import { createServerFn } from "@tanstack/react-start";import { authMiddleware } from "@/lib/auth/middleware";import { assignAndStartRepair } from "./repair-loop";export const assignAndStartRepairFn=createServerFn({method:"POST"}).middleware([authMiddleware]).handler(async({data,context})=>JSON.parse(JSON.stringify(await assignAndStartRepair(context.userId,data))));
