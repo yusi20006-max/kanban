@@ -15,6 +15,7 @@ import { agentRegistrationSchema, heartbeatSchema } from "@/lib/agent-control-pl
 import { heartbeatAgent, listAgentsWithLiveness } from "@/lib/agent-control-plane/liveness";
 import { claimTaskSchema } from "@/lib/agent-control-plane/contracts";
 import { claimTask, createAgentTask, releaseLease } from "@/lib/agent-control-plane/lease";
+import { startExecution, finishExecution } from "@/lib/agent-control-plane/execution";
 import { registerAgent, unregisterAgent, listAgents, getAgent } from "@/lib/agent-control-plane/registry";
 
 type Guard = () => void | Promise<void>;
@@ -45,6 +46,16 @@ async function audited(
 }
 
 export function registerKanbanTools(server: McpServer, userId: string, guard: Guard) {
+  server.registerTool("kanban_start_execution", {
+    description: "Start an execution attempt under the caller's active task lease.",
+    inputSchema: z.object({ executionId: z.string().trim().min(1).max(128), taskId: z.string().trim().min(1).max(128), agentId: z.string().trim().min(1).max(128) }),
+  }, async (args) => audited(userId, guard, "agent.execution.start", {}, () => startExecution(userId, args)));
+
+  server.registerTool("kanban_finish_execution", {
+    description: "Finish an owned execution with an explicit terminal status and metadata.",
+    inputSchema: z.object({ executionId: z.string().trim().min(1).max(128), status: z.enum(["succeeded","failed","timed_out","cancelled"]), result: z.record(z.string(), z.unknown()).nullable().default(null), error: z.record(z.string(), z.unknown()).nullable().default(null) }),
+  }, async (args) => audited(userId, guard, "agent.execution.finish", {}, () => finishExecution(userId, args)));
+
   server.registerTool("kanban_create_agent_task", {
     description: "Create an owned execution task.",
     inputSchema: z.object({ taskId: z.string().trim().min(1).max(128), title: z.string().trim().min(1).max(500), boardId: z.string().trim().min(1).max(128).nullable().default(null), cardId: z.string().trim().min(1).max(128).nullable().default(null) }),
