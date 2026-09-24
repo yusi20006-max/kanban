@@ -118,7 +118,7 @@ test("platform chrome overwrites share-card metas and always sets og:title", () 
 
 test("does not duplicate twitter:card or og:title", () => {
   const once = injectGrokPwaHead("<html><head><title>Hello World</title></head></html>", { cwd: ISOLATED_CWD });
-  const twice = injectGrokPwaHead(once);
+  const twice = injectGrokPwaHead(once, { cwd: ISOLATED_CWD });
   assert.equal(once, twice);
   assert.equal(twice.split('name="twitter:card"').length - 1, 1);
   assert.equal(twice.split('property="og:title"').length - 1, 1);
