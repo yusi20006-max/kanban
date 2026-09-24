@@ -13,6 +13,8 @@ import { recordPhaseInputSchema, transitionInputSchema } from "@/lib/workflow";
 import { KANBAN_CONTRACT_VERSION, publicErrorCode } from "@/lib/contract";
 import { agentRegistrationSchema, heartbeatSchema } from "@/lib/agent-control-plane/contracts";
 import { heartbeatAgent, listAgentsWithLiveness } from "@/lib/agent-control-plane/liveness";
+import { claimTaskSchema } from "@/lib/agent-control-plane/contracts";
+import { claimTask, createAgentTask, releaseLease } from "@/lib/agent-control-plane/lease";
 import { registerAgent, unregisterAgent, listAgents, getAgent } from "@/lib/agent-control-plane/registry";
 
 type Guard = () => void | Promise<void>;
@@ -43,6 +45,21 @@ async function audited(
 }
 
 export function registerKanbanTools(server: McpServer, userId: string, guard: Guard) {
+  server.registerTool("kanban_create_agent_task", {
+    description: "Create an owned execution task.",
+    inputSchema: z.object({ taskId: z.string().trim().min(1).max(128), title: z.string().trim().min(1).max(500), boardId: z.string().trim().min(1).max(128).nullable().default(null), cardId: z.string().trim().min(1).max(128).nullable().default(null) }),
+  }, async (args) => audited(userId, guard, "agent.task.create", {}, () => createAgentTask(userId, args)));
+
+  server.registerTool("kanban_claim_agent_task", {
+    description: "Atomically claim an owned task with a time-bounded lease.",
+    inputSchema: z.object({ taskId: z.string().trim().min(1).max(128), agentId: z.string().trim().min(1).max(128), leaseTtlSeconds: z.number().int().min(1).max(86400).default(300), idempotencyKey: z.string().trim().min(1).max(200).nullable().default(null) }),
+  }, async (args) => audited(userId, guard, "agent.claim", {}, () => claimTask(userId, claimTaskSchema.parse(args))));
+
+  server.registerTool("kanban_release_agent_lease", {
+    description: "Release an owned active agent task lease.",
+    inputSchema: z.object({ leaseId: z.string().trim().min(1).max(128), agentId: z.string().trim().min(1).max(128) }),
+  }, async ({ leaseId, agentId }) => audited(userId, guard, "agent.release", {}, () => releaseLease(userId, leaseId, agentId)));
+
   server.registerTool("kanban_agent_heartbeat", {
     description: "Record an authenticated agent heartbeat and refresh liveness.",
     inputSchema: z.object({ agentId: z.string().trim().min(1).max(128), observedAt: z.coerce.date().optional() }),
