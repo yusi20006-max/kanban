@@ -1,0 +1,24 @@
+import { z } from "zod";
+
+export const agentStatusSchema = z.enum(["registered", "ready", "busy", "stale", "offline", "disabled"]);
+export type AgentStatus = z.infer<typeof agentStatusSchema>;
+export const taskStatusSchema = z.enum(["pending", "claimed", "running", "blocked", "completed", "failed", "cancelled"]);
+export type TaskStatus = z.infer<typeof taskStatusSchema>;
+export const executionStatusSchema = z.enum(["queued", "running", "succeeded", "failed", "timed_out", "cancelled"]);
+export type ExecutionStatus = z.infer<typeof executionStatusSchema>;
+export const leaseStatusSchema = z.enum(["active", "expired", "released"]);
+export type LeaseStatus = z.infer<typeof leaseStatusSchema>;
+export const agentIdSchema = z.string().trim().min(1).max(128);
+export const taskIdSchema = z.string().trim().min(1).max(128);
+export const executionIdSchema = z.string().trim().min(1).max(128);
+export const leaseIdSchema = z.string().trim().min(1).max(128);
+export const agentCapabilitySchema = z.string().trim().min(1).max(128);
+export const agentMetadataSchema = z.record(z.string(), z.unknown());
+export const agentRegistrationSchema = z.object({ agentId: agentIdSchema, name: z.string().trim().min(1).max(200), capabilities: z.array(agentCapabilitySchema).max(100).default([]), metadata: agentMetadataSchema.default({}) });
+export const heartbeatSchema = z.object({ agentId: agentIdSchema, observedAt: z.coerce.date().optional() });
+export const claimTaskSchema = z.object({ taskId: taskIdSchema, agentId: agentIdSchema, leaseTtlSeconds: z.number().int().min(1).max(86_400).default(300), idempotencyKey: z.string().trim().min(1).max(200).nullable().default(null) });
+export const executionSchema = z.object({ executionId: executionIdSchema, taskId: taskIdSchema, agentId: agentIdSchema, status: executionStatusSchema });
+export const leaseSchema = z.object({ leaseId: leaseIdSchema, taskId: taskIdSchema, agentId: agentIdSchema, status: leaseStatusSchema, acquiredAt: z.coerce.date(), expiresAt: z.coerce.date(), releasedAt: z.coerce.date().nullable() });
+export const delegationLinkSchema = z.object({ parentTaskId: taskIdSchema, childTaskId: taskIdSchema, parentExecutionId: executionIdSchema.nullable(), childExecutionId: executionIdSchema.nullable() });
+export const executionEventSchema = z.object({ executionId: executionIdSchema, taskId: taskIdSchema, type: z.enum(["created", "claimed", "started", "heartbeat", "released", "expired", "succeeded", "failed", "timed_out", "cancelled", "delegated"]), at: z.coerce.date(), agentId: agentIdSchema.nullable(), payload: z.record(z.string(), z.unknown()).default({}) });
+export const AGENT_CONTROL_PLANE_CONTRACT_VERSION = "1.0.0";
