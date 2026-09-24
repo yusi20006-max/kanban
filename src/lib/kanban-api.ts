@@ -13,7 +13,8 @@ import {
   recordWorkflowPhase, transitionAgent,
 } from "@/lib/kanban-domain";
 import { recordPhaseInputSchema, transitionInputSchema } from "@/lib/workflow";
-import { agentRegistrationSchema } from "@/lib/agent-control-plane/contracts";
+import { agentRegistrationSchema, heartbeatSchema } from "@/lib/agent-control-plane/contracts";
+import { heartbeatAgent, listAgentsWithLiveness } from "@/lib/agent-control-plane/liveness";
 import { registerAgent, unregisterAgent, listAgents, getAgent } from "@/lib/agent-control-plane/registry";
 
 type RequestContext = { userId: string; requestId: string };
@@ -143,3 +144,11 @@ export const listAgentsFn = createServerFn({ method: "GET" }).middleware([authMi
 export const getAgentFn = createServerFn({ method: "GET" }).middleware([authMiddleware])
   .inputValidator(z.object({ agentId: z.string().trim().min(1).max(128) }))
   .handler(async ({ data, context }) => getAgent(context.userId, data.agentId));
+
+
+export const heartbeatAgentFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(heartbeatSchema)
+  .handler(async ({ data, context }) => audited(context, "agent.heartbeat", {}, () => heartbeatAgent(context.userId, data)));
+
+export const listAgentsWithLivenessFn = createServerFn({ method: "GET" }).middleware([authMiddleware])
+  .handler(async ({ context }) => listAgentsWithLiveness(context.userId));

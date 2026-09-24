@@ -11,7 +11,8 @@ import { linkGithubCard as linkGithub, refreshGithubCard as refreshGithub } from
 import { auditMutation, assertRateLimit } from "@/lib/security.server";
 import { recordPhaseInputSchema, transitionInputSchema } from "@/lib/workflow";
 import { KANBAN_CONTRACT_VERSION, publicErrorCode } from "@/lib/contract";
-import { agentRegistrationSchema } from "@/lib/agent-control-plane/contracts";
+import { agentRegistrationSchema, heartbeatSchema } from "@/lib/agent-control-plane/contracts";
+import { heartbeatAgent, listAgentsWithLiveness } from "@/lib/agent-control-plane/liveness";
 import { registerAgent, unregisterAgent, listAgents, getAgent } from "@/lib/agent-control-plane/registry";
 
 type Guard = () => void | Promise<void>;
@@ -42,6 +43,16 @@ async function audited(
 }
 
 export function registerKanbanTools(server: McpServer, userId: string, guard: Guard) {
+  server.registerTool("kanban_agent_heartbeat", {
+    description: "Record an authenticated agent heartbeat and refresh liveness.",
+    inputSchema: z.object({ agentId: z.string().trim().min(1).max(128), observedAt: z.coerce.date().optional() }),
+  }, async (args) => audited(userId, guard, "agent.heartbeat", {}, () => heartbeatAgent(userId, heartbeatSchema.parse(args))));
+
+  server.registerTool("kanban_list_agents_liveness", {
+    description: "List owned agents with deterministic effective liveness status.",
+    inputSchema: z.object({}),
+  }, async () => { try { await guard(); await assertRateLimit(userId, "mcp"); return ok(await listAgentsWithLiveness(userId)); } catch (e) { return fail(e); } });
+
   server.registerTool("kanban_register_agent", {
     description: "Register or refresh an execution agent owned by the authenticated identity.",
     inputSchema: z.object({ agentId: z.string().trim().min(1).max(128), name: z.string().trim().min(1).max(200), capabilities: z.array(z.string().trim().min(1).max(128)).max(100).default([]), metadata: z.record(z.string(), z.unknown()).default({}) }),
