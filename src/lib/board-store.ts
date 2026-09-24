@@ -1,8 +1,7 @@
 import { create } from "zustand";
 import { listBoard, createCard, updateCard, moveCard as moveCardRemote, archiveCard } from "@/lib/kanban-api";
 
-export const COLUMN_IDS = ["todo", "doing", "done"] as const;
-export type ColumnId = (typeof COLUMN_IDS)[number];
+export type ColumnId = string;
 
 export type Priority = "low" | "medium" | "high" | "critical";
 
@@ -17,6 +16,7 @@ export type Card = {
 };
 
 export type Columns = Record<ColumnId, string[]>;
+export type ColumnMeta = { title: string; hint: string; tone: string };
 
 export const COLUMN_META: Record<ColumnId, { title: string; hint: string; tone: ColumnId }> = {
   todo: { title: "برای انجام", hint: "کارهای پیش رو", tone: "todo" },
@@ -28,6 +28,7 @@ const BOARD_ID = "default";
 
 type BoardState = {
   columns: Columns;
+  columnMeta: Record<ColumnId, ColumnMeta>;
   cards: Record<string, Card>;
   hasHydrated: boolean;
   syncing: boolean;
@@ -66,17 +67,23 @@ function fromRows(rows: Awaited<ReturnType<typeof listBoard>>["cards"]): {
   columns: Columns;
 } {
   const cards: Record<string, Card> = {};
-  const columns: Columns = { todo: [], doing: [], done: [] };
+  const columns: Columns = {};
+  const columnMeta: Record<ColumnId, ColumnMeta> = {};
+  for (const column of rows.columns as Array<{ id: string; name: string; position: number }>) {
+    columns[column.id] = [];
+    columnMeta[column.id] = { title: column.name, hint: "کارت‌های این ستون", tone: column.id };
+  }
   for (const row of rows) {
     const card = toCard(row);
     cards[card.id] = card;
     columns[row.column_id].push(card.id);
   }
-  return { cards, columns };
+  return { cards, columns, columnMeta };
 }
 
 export const useBoardStore = create<BoardState>((set, get) => ({
-  columns: { todo: [], doing: [], done: [] },
+  columns: {},
+  columnMeta: {},
   cards: {},
   hasHydrated: false,
   syncing: false,
@@ -99,9 +106,9 @@ export const useBoardStore = create<BoardState>((set, get) => ({
   },
 
   findContainer: (id) => {
-    if (id === "todo" || id === "doing" || id === "done") return id;
     const { columns } = get();
-    return COLUMN_IDS.find((key) => columns[key].includes(id));
+    if (id in columns) return id;
+    return Object.keys(columns).find((key) => columns[key].includes(id));
   },
 
   addCard: async ({ title, description, columnId }) => {
