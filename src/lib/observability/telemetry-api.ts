@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
-import { authMiddleware } from "@/lib/auth";
+import { authMiddleware } from "@/lib/auth/middleware";
 import { recordTelemetry, listTelemetry } from "./telemetry";
 
 const recordInput=z.object({taskId:z.string().nullable().default(null),executionId:z.string().nullable().default(null),agentId:z.string().nullable().default(null),eventType:z.string().min(1).max(128),fromState:z.string().nullable().default(null),toState:z.string().nullable().default(null),payload:z.record(z.string(),z.unknown()).default({})});
