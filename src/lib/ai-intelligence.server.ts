@@ -122,3 +122,28 @@ export async function listAiRoutingDecisions(userId:string,taskId:string) {
   const sql=await getSql();
   return sql.query("select id,task_id as \"taskId\",selected_model_id as \"selectedModelId\",requirements,candidates,decision_hash as \"decisionHash\",created_at as \"createdAt\" from kanban_ai_routing_decisions where owner_user_id=$1 and task_id=$2 order by created_at desc",[userId,taskId]);
 }
+
+export const aiFallbackInputSchema = z.object({
+  failedModelId: z.string().trim().min(1).max(128),
+  reason: z.enum(["unavailable","timeout","rate_limit","auth","capacity","provider_error","unknown"]),
+  retrySafe: z.boolean().default(true),
+});
+export type AiFallbackInput = z.infer<typeof aiFallbackInputSchema>;
+
+export async function planAiFallback(userId:string, taskId:string, input:unknown) {
+  const data=aiFallbackInputSchema.parse(input);
+  const sql=await getSql();
+  const task=await sql.query<{id:string}>("select id from kanban_agent_tasks where id=$1 and owner_user_id=$2",[taskId,userId]);
+  if(!task[0]) throw new Error("TASK_NOT_FOUND");
+  if(!data.retrySafe) throw new Error("FALLBACK_RETRY_NOT_SAFE");
+  const latest=await sql.query<{selected_model_id:string;candidates:string[]}>("select selected_model_id,candidates from kanban_ai_routing_decisions where owner_user_id=$1 and task_id=$2 order by created_at desc limit 1",[userId,taskId]);
+  if(!latest[0]) throw new Error("ROUTING_NOT_FOUND");
+  const candidates=Array.isArray(latest[0].candidates)?latest[0].candidates:[];
+  const failedIndex=candidates.indexOf(data.failedModelId);
+  const nextId=candidates.slice(failedIndex+1).find(Boolean) ?? null;
+  const sequenceRows=await sql.query<{n:number|string}>("select coalesce(max(sequence),0)+1 as n from kanban_ai_fallback_attempts where owner_user_id=$1 and task_id=$2",[userId,taskId]);
+  const sequence=Number(sequenceRows[0]?.n??1);
+  const id=crypto.randomUUID();
+  await sql.query("insert into kanban_ai_fallback_attempts(id,owner_user_id,task_id,failed_model_id,fallback_model_id,reason,retry_safe,sequence) values($1,$2,$3,$4,$5,$6,$7,$8)",[id,userId,taskId,data.failedModelId,nextId,data.reason,data.retrySafe,sequence]);
+  return {id,taskId,failedModelId:data.failedModelId,fallbackModelId:nextId,reason:data.reason,retrySafe:data.retrySafe,sequence,exhausted:nextId===null};
+}
