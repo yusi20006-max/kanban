@@ -75,9 +75,12 @@ export async function createCard(userId:string,data:CardInput) {
     [data.boardId,data.columnId],
   );
   const position=Number(rows[0]?.position ?? 0);
-  await sql.query("insert into kanban_cards(id,board_id,column_id,position,title,description,priority,due_date) values($1,$2,$3,$4,$5,$6,$7,$8)",
-    [id,data.boardId,data.columnId,position,data.title,data.description,data.priority,data.dueDate]);
-  return {id};
+  const value={id};
+  return sql.transaction(async (tx) => {
+    await tx.query("insert into kanban_cards(id,board_id,column_id,position,title,description,priority,due_date) values($1,$2,$3,$4,$5,$6,$7,$8)",[id,data.boardId,data.columnId,position,data.title,data.description,data.priority,data.dueDate]);
+    if(data.idempotencyKey) await tx.query("insert into kanban_idempotency(actor_user_id,operation_key,action,result) values($1,$2,$3,$4::jsonb)",[userId,data.idempotencyKey,"card.create",JSON.stringify(value)]);
+    return value;
+  });
 }
 
 export async function updateCard(userId:string,data:UpdateCardInput) {
