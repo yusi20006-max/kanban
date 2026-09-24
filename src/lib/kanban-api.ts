@@ -77,7 +77,7 @@ export const moveCard = moveCardFn;
 export const linkGithubFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
   .inputValidator(z.object({
     boardId: z.string().min(1).max(128), cardId: z.string().min(1).max(128),
-    repo: z.string().regex(/^[^/]+\\/[^/]+$/),
+    repo: z.string().regex(new RegExp("^[^/]+/[^/]+$")),
     issueNumber: z.number().int().positive().nullable().default(null),
     prNumber: z.number().int().positive().nullable().default(null),
   }))
