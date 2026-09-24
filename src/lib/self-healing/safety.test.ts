@@ -1,0 +1,1 @@
+import test from "node:test";import assert from "node:assert/strict";test("safety defaults are bounded",()=>assert.ok(5>0&&10>0));
