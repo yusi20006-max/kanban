@@ -218,3 +218,47 @@ export async function aggregateAiUsage(userId:string,taskId?:string) {
   const rows=await sql.query(`select provider,model_id as "modelId",count(*)::int as "executions",sum(input_tokens)::bigint as "inputTokens",sum(output_tokens)::bigint as "outputTokens",sum(units)::bigint as "units",sum(estimated_cost)::numeric as "estimatedCost",avg(latency_ms)::numeric as "avgLatencyMs",currency from kanban_ai_usage ${where} group by provider,model_id,currency order by provider,model_id`,params);
   return rows;
 }
+
+export const aiContextSourceSchema=z.enum(["task","card","board","repo","github","memory"]);
+export const aiContextSelectionSchema=z.object({
+  sources:z.array(aiContextSourceSchema).default(["task","card"]),
+  capabilities:z.array(z.string().trim().min(1).max(128)).default([]),
+  maxSources:z.number().int().min(1).max(20).default(8),
+});
+export async function selectAiContext(userId:string,taskId:string,input:unknown) {
+  const data=aiContextSelectionSchema.parse(input);
+  const sql=await getSql();
+  const task=await sql.query<{id:string;board_id:string|null;card_id:string|null;title:string}>("select id,board_id,card_id,title from kanban_agent_tasks where id=$1 and owner_user_id=$2",[taskId,userId]);
+  if(!task[0]) throw new Error("TASK_NOT_FOUND");
+  const available: string[]=["task"];
+  if(task[0].card_id) available.push("card");
+  if(task[0].board_id) available.push("board");
+  if(data.sources.includes("repo")) available.push("repo");
+  if(data.sources.includes("github")) available.push("github");
+  if(data.sources.includes("memory")) available.push("memory");
+  const selected=data.sources.filter(source=>available.includes(source)).slice(0,data.maxSources);
+  const capabilities=[...new Set(data.capabilities)].sort();
+  const canonical=JSON.stringify({taskId,requestedSources:data.sources,selectedSources:selected,capabilities});
+  const hash=await sha256(canonical);
+  const existing=await sql.query("select id,task_id as \"taskId\",selected_sources as \"selectedSources\",requested_sources as \"requestedSources\",capabilities,decision_hash as \"decisionHash\",created_at as \"createdAt\" from kanban_ai_context_decisions where owner_user_id=$1 and task_id=$2 and decision_hash=$3",[userId,taskId,hash]);
+  if(existing[0]) return {...existing[0],idempotent:true};
+  const id=crypto.randomUUID();
+  await sql.query("insert into kanban_ai_context_decisions(id,owner_user_id,task_id,selected_sources,requested_sources,capabilities,decision_hash) values($1,$2,$3,$4::jsonb,$5::jsonb,$6::jsonb,$7)",[id,userId,taskId,JSON.stringify(selected),JSON.stringify(data.sources),JSON.stringify(capabilities),hash]);
+  return {id,taskId,selectedSources:selected,requestedSources:data.sources,capabilities,decisionHash:hash,idempotent:false};
+}
+export async function listAiContextDecisions(userId:string,taskId:string) {
+  const sql=await getSql();
+  return sql.query("select id,task_id as \"taskId\",selected_sources as \"selectedSources\",requested_sources as \"requestedSources\",capabilities,decision_hash as \"decisionHash\",created_at as \"createdAt\" from kanban_ai_context_decisions where owner_user_id=$1 and task_id=$2 order by created_at desc",[userId,taskId]);
+}
+
+export const aiIntelligenceTaskInputSchema=z.object({
+  taskId:z.string().trim().min(1).max(128),
+  routing:aiRoutingRequirementsSchema.optional(),
+  context:aiContextSelectionSchema.optional(),
+});
+export async function planAiIntelligence(userId:string,input:unknown) {
+  const data=aiIntelligenceTaskInputSchema.parse(input);
+  const routing=await routeAiTask(userId,data.taskId,data.routing??{});
+  const context=await selectAiContext(userId,data.taskId,data.context??{});
+  return {taskId:data.taskId,routing,context};
+}
