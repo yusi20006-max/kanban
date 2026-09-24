@@ -21,7 +21,7 @@ import { delegateTask, listDelegations, linkChildExecution } from "@/lib/agent-c
 import { listExecutionHistory, listTaskHistory } from "@/lib/agent-control-plane/history";
 import { ingestIssueToCard, cardToBranch, branchToPr, refreshDeliveryCi, ciFailureToTask, verifyMerge, releaseToDone } from "@/lib/github-delivery.server";
 import { registerAgent, unregisterAgent, listAgents, getAgent } from "@/lib/agent-control-plane/registry";
-import { assignAgentRole, listAgentRoles, findAgentsForRole, createPlannerGraph, getPlannerGraph, routeSpecializedExecution, getExecutionRole } from "@/lib/agent-control-plane/orchestration";
+import { assignAgentRole, listAgentRoles, findAgentsForRole, createPlannerGraph, getPlannerGraph, routeSpecializedExecution, getExecutionRole, listSchedulableTasks, scheduleTask } from "@/lib/agent-control-plane/orchestration";
 
 type Guard = () => void | Promise<void>;
 
@@ -135,6 +135,16 @@ export function registerKanbanTools(server: McpServer, userId: string, guard: Gu
     description: "Disable an owned execution agent.",
     inputSchema: z.object({ agentId: z.string().trim().min(1).max(128) }),
   }, async ({ agentId }) => audited(userId, guard, "agent.unregister", {}, () => unregisterAgent(userId, agentId)));
+
+  server.registerTool("kanban_list_schedulable_tasks", {
+    description: "List plan tasks whose dependencies are complete and whose leases are free.",
+    inputSchema: z.object({ planId:z.string().trim().min(1).max(128) }),
+  }, async ({planId}) => { try { await guard(); await assertRateLimit(userId,"mcp"); return ok(await listSchedulableTasks(userId,planId)); } catch(e){ return fail(e); } });
+
+  server.registerTool("kanban_schedule_task", {
+    description: "Atomically schedule a task only when dependencies and lease constraints permit.",
+    inputSchema: z.object({ planId:z.string().trim().min(1).max(128), taskId:z.string().trim().min(1).max(128), agentId:z.string().trim().min(1).max(128), leaseTtlSeconds:z.number().int().min(1).max(86400).default(300) }),
+  }, async (args) => audited(userId, guard, "orchestration.schedule", {}, () => scheduleTask(userId,args.planId,args.taskId,args.agentId,args.leaseTtlSeconds)));
 
   server.registerTool("kanban_route_specialized_execution", {
     description: "Route a task to an eligible role-assigned agent and create an explicitly role-bound execution.",
