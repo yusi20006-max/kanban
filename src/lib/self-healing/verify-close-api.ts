@@ -1,0 +1,1 @@
+import { createServerFn } from "@tanstack/react-start";import { authMiddleware } from "@/lib/auth/middleware";import { verifyAndClose } from "./verify-close";export const verifyAndCloseFn=createServerFn({method:"POST"}).middleware([authMiddleware]).handler(async({data,context})=>JSON.parse(JSON.stringify(await verifyAndClose(context.userId,data))));
