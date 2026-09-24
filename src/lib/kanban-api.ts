@@ -19,6 +19,7 @@ import { claimTaskSchema } from "@/lib/agent-control-plane/contracts";
 import { claimTask, createAgentTask, releaseLease } from "@/lib/agent-control-plane/lease";
 import { startExecution, finishExecution } from "@/lib/agent-control-plane/execution";
 import { retryExecution, timeoutExecution, cancelExecution } from "@/lib/agent-control-plane/recovery";
+import { delegateTask, listDelegations, linkChildExecution } from "@/lib/agent-control-plane/delegation";
 import { registerAgent, unregisterAgent, listAgents, getAgent } from "@/lib/agent-control-plane/registry";
 
 type RequestContext = { userId: string; requestId: string };
@@ -191,3 +192,16 @@ export const timeoutExecutionFn = createServerFn({ method: "POST" }).middleware(
 export const cancelExecutionFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
   .inputValidator(z.object({ executionId: z.string().trim().min(1).max(128) }))
   .handler(async ({ data, context }) => audited(context, "agent.execution.cancel", {}, () => cancelExecution(context.userId, data.executionId)));
+
+
+export const delegateTaskFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ parentTaskId:z.string().trim().min(1).max(128), childTaskId:z.string().trim().min(1).max(128), title:z.string().trim().min(1).max(500), boardId:z.string().trim().min(1).max(128).nullable().default(null), cardId:z.string().trim().min(1).max(128).nullable().default(null), parentExecutionId:z.string().trim().min(1).max(128).nullable().default(null) }))
+  .handler(async ({ data, context }) => audited(context, "agent.delegate", {}, () => delegateTask(context.userId, data)));
+
+export const listDelegationsFn = createServerFn({ method: "GET" }).middleware([authMiddleware])
+  .inputValidator(z.object({ taskId:z.string().trim().min(1).max(128) }))
+  .handler(async ({ data, context }) => listDelegations(context.userId, data.taskId));
+
+export const linkChildExecutionFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator(z.object({ delegationId:z.string().trim().min(1).max(128), childExecutionId:z.string().trim().min(1).max(128) }))
+  .handler(async ({ data, context }) => audited(context, "agent.delegate.link", {}, () => linkChildExecution(context.userId, data.delegationId, data.childExecutionId)));
