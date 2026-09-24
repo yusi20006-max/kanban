@@ -16,6 +16,7 @@ import { heartbeatAgent, listAgentsWithLiveness } from "@/lib/agent-control-plan
 import { claimTaskSchema } from "@/lib/agent-control-plane/contracts";
 import { claimTask, createAgentTask, releaseLease } from "@/lib/agent-control-plane/lease";
 import { startExecution, finishExecution } from "@/lib/agent-control-plane/execution";
+import { retryExecution, timeoutExecution, cancelExecution } from "@/lib/agent-control-plane/recovery";
 import { registerAgent, unregisterAgent, listAgents, getAgent } from "@/lib/agent-control-plane/registry";
 
 type Guard = () => void | Promise<void>;
@@ -48,8 +49,23 @@ async function audited(
 export function registerKanbanTools(server: McpServer, userId: string, guard: Guard) {
   server.registerTool("kanban_start_execution", {
     description: "Start an execution attempt under the caller's active task lease.",
-    inputSchema: z.object({ executionId: z.string().trim().min(1).max(128), taskId: z.string().trim().min(1).max(128), agentId: z.string().trim().min(1).max(128) }),
+    inputSchema: z.object({ executionId: z.string().trim().min(1).max(128), taskId: z.string().trim().min(1).max(128), agentId: z.string().trim().min(1).max(128), timeoutSeconds: z.number().int().min(1).max(86400).nullable().default(null) }),
   }, async (args) => audited(userId, guard, "agent.execution.start", {}, () => startExecution(userId, args)));
+
+  server.registerTool("kanban_retry_execution", {
+    description: "Return a failed or timed-out task to pending for a new leased execution attempt.",
+    inputSchema: z.object({ executionId: z.string().trim().min(1).max(128) }),
+  }, async (args) => audited(userId, guard, "agent.execution.retry", {}, () => retryExecution(userId, args)));
+
+  server.registerTool("kanban_timeout_execution", {
+    description: "Mark an overdue running execution as timed out.",
+    inputSchema: z.object({ executionId: z.string().trim().min(1).max(128) }),
+  }, async ({ executionId }) => audited(userId, guard, "agent.execution.timeout", {}, () => timeoutExecution(userId, executionId)));
+
+  server.registerTool("kanban_cancel_execution", {
+    description: "Cancel a running execution and release its task lease.",
+    inputSchema: z.object({ executionId: z.string().trim().min(1).max(128) }),
+  }, async ({ executionId }) => audited(userId, guard, "agent.execution.cancel", {}, () => cancelExecution(userId, executionId)));
 
   server.registerTool("kanban_finish_execution", {
     description: "Finish an owned execution with an explicit terminal status and metadata.",
