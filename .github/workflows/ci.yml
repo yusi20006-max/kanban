@@ -22,7 +22,17 @@ jobs:
       - run: npm test
       - run: npm run build
       - name: Start preview
-        run: npm run preview > /tmp/kanban-preview.log 2>&1 &
+        run: npm run preview -- --host 127.0.0.1 > /tmp/kanban-preview.log 2>&1 &
+      - name: Wait for preview
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/health/live >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/kanban-preview.log
+          exit 1
       - run: npm run production:smoke
         env:
-          BASE_URL: http://localhost:4173
+          BASE_URL: http://127.0.0.1:4173
