@@ -10,15 +10,16 @@ import {
 import { linkGithubCard as linkGithub, refreshGithubCard as refreshGithub } from "@/lib/github-api.server";
 import { auditMutation, assertRateLimit } from "@/lib/security.server";
 import { recordPhaseInputSchema, transitionInputSchema } from "@/lib/workflow";
+import { KANBAN_CONTRACT_VERSION, publicErrorCode } from "@/lib/contract";
 
 type Guard = () => void | Promise<void>;
 
 function ok(data: unknown) {
-  return { content: [{ type: "text" as const, text: JSON.stringify({ ok: true, data }) }] };
+  return { content: [{ type: "text" as const, text: JSON.stringify({ ok: true, contractVersion: KANBAN_CONTRACT_VERSION, data }) }] };
 }
 function fail(error: unknown) {
-  const code = error instanceof Error ? error.message : "INTERNAL_ERROR";
-  return { content: [{ type: "text" as const, text: JSON.stringify({ ok: false, error: { code } }) }], isError: true };
+  const code = publicErrorCode(error);
+  return { content: [{ type: "text" as const, text: JSON.stringify({ ok: false, contractVersion: KANBAN_CONTRACT_VERSION, error: { code, message: "Operation failed" } }) }], isError: true };
 }
 
 async function audited(
