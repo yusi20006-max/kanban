@@ -99,3 +99,36 @@ export async function getExecutionRole(userId:string,executionId:string){
   if(!rows[0]) throw new Error("EXECUTION_ROLE_NOT_FOUND");
   return rows[0];
 }
+
+export async function listSchedulableTasks(userId:string,planId:string){
+  const sql=await getSql();
+  return sql.query(`select n.task_id as "taskId",n.role,t.status from kanban_orchestration_plan_nodes n join kanban_agent_tasks t on t.id=n.task_id and t.owner_user_id=n.owner_user_id where n.plan_id=$1 and n.owner_user_id=$2 and t.status in ('pending','failed','blocked') and not exists (select 1 from kanban_agent_leases l where l.task_id=t.id and l.status='active' and l.expires_at>now()) and not exists (select 1 from kanban_orchestration_dependencies d join kanban_agent_tasks dep on dep.id=d.depends_on_task_id where d.plan_id=n.plan_id and d.task_id=n.task_id and dep.status<>'completed') order by n.position`,[planId,userId]);
+}
+export async function scheduleTask(userId:string,planId:string,taskId:string,agentId:string,leaseTtlSeconds=300){
+  const sql=await getSql();
+  return sql.transaction(async tx=>{
+    const task=await tx.query<{id:string;status:string}>("select id,status from kanban_agent_tasks where id=$1 and owner_user_id=$2 for update",[taskId,userId]);
+    if(!task[0]) throw new Error("TASK_NOT_FOUND");
+    const plan=await tx.query("select id from kanban_orchestration_plans where id=$1 and owner_user_id=$2",[planId,userId]);
+    if(!plan[0]) throw new Error("PLAN_NOT_FOUND");
+    const deps=await tx.query<{status:string}>(`select dep.status from kanban_orchestration_dependencies d join kanban_agent_tasks dep on dep.id=d.depends_on_task_id where d.plan_id=$1 and d.task_id=$2 for update`,[planId,taskId]);
+    if(deps.some(d=>d.status!=="completed")){
+      await tx.query("insert into kanban_orchestration_schedule_events(id,owner_user_id,plan_id,task_id,agent_id,outcome,reason) values($1,$2,$3,$4,$5,'blocked','dependencies')",[crypto.randomUUID(),userId,planId,taskId,agentId]);
+      throw new Error("DEPENDENCIES_NOT_SATISFIED");
+    }
+    const active=await tx.query<{id:string;expires_at:string}>( "select id,expires_at from kanban_agent_leases where task_id=$1 and status='active' for update",[taskId]);
+    if(active[0] && new Date(active[0].expires_at).getTime()>Date.now()) {
+      await tx.query("insert into kanban_orchestration_schedule_events(id,owner_user_id,plan_id,task_id,agent_id,outcome,reason) values($1,$2,$3,$4,$5,'duplicate','active_lease')",[crypto.randomUUID(),userId,planId,taskId,agentId]);
+      throw new Error("TASK_ALREADY_LEASED");
+    }
+    if(!["pending","failed","blocked"].includes(task[0].status)) throw new Error("TASK_NOT_SCHEDULABLE");
+    const agent=await tx.query<{id:string;status:string}>( "select id,status from kanban_agents where id=$1 and owner_user_id=$2 for update",[agentId,userId]);
+    if(!agent[0]) throw new Error("AGENT_NOT_FOUND");
+    if(!["ready","busy"].includes(agent[0].status)) throw new Error("AGENT_NOT_AVAILABLE");
+    const now=new Date(),expires=new Date(now.getTime()+leaseTtlSeconds*1000),leaseId=crypto.randomUUID();
+    await tx.query("insert into kanban_agent_leases(id,owner_user_id,task_id,agent_id,status,acquired_at,expires_at) values($1,$2,$3,$4,'active',$5,$6)",[leaseId,userId,taskId,agentId,now.toISOString(),expires.toISOString()]);
+    await tx.query("update kanban_agent_tasks set status='claimed',updated_at=now() where id=$1",[taskId]);
+    await tx.query("insert into kanban_orchestration_schedule_events(id,owner_user_id,plan_id,task_id,agent_id,outcome) values($1,$2,$3,$4,$5,'claimed')",[crypto.randomUUID(),userId,planId,taskId,agentId]);
+    return {taskId,agentId,leaseId,expiresAt:expires.toISOString(),status:"claimed" as const};
+  });
+}
