@@ -157,3 +157,25 @@ export async function assertOrchestrationGatesClear(userId:string,taskId:string)
  if(rows.length) throw new Error("REQUIRED_GATE_BLOCKED");
  return {taskId,clear:true};
 }
+
+export async function recoverOrchestration(userId:string,planId?:string){
+ const sql=await getSql();
+ return sql.transaction(async tx=>{
+  const leaseRows=await tx.query<{id:string;task_id:string;agent_id:string}>(`select id,task_id,agent_id from kanban_agent_leases where owner_user_id=$1 and status='active' and expires_at<=now() and ($2::text is null or task_id in (select task_id from kanban_orchestration_plan_nodes where plan_id=$2)) for update`,[userId,planId??null]);
+  const expiredLeases:string[]=[];
+  for(const l of leaseRows){
+   await tx.query("update kanban_agent_leases set status='expired',released_at=coalesce(released_at,now()) where id=$1",[l.id]);
+   await tx.query("insert into kanban_orchestration_recovery_events(id,owner_user_id,plan_id,task_id,event_type,details) values($1,$2,$3,$4,'lease_expired',$5::jsonb) on conflict do nothing",[crypto.randomUUID(),userId,planId??null,l.task_id,JSON.stringify({leaseId:l.id,agentId:l.agent_id})]);
+   expiredLeases.push(l.id);
+  }
+  const execRows=await tx.query<{id:string;task_id:string;agent_id:string}>(`select id,task_id,agent_id from kanban_agent_executions where owner_user_id=$1 and status='running' and deadline_at is not null and deadline_at<=now() and ($2::text is null or task_id in (select task_id from kanban_orchestration_plan_nodes where plan_id=$2)) for update`,[userId,planId??null]);
+  const timedOut:string[]=[];
+  for(const e of execRows){
+   await tx.query("update kanban_agent_executions set status='timed_out',ended_at=coalesce(ended_at,now()),updated_at=now() where id=$1 and status='running'",[e.id]);
+   await tx.query("update kanban_agent_tasks set status='pending',updated_at=now() where id=$1 and owner_user_id=$2 and status='running' and not exists(select 1 from kanban_agent_executions x where x.task_id=$1 and x.status='running')",[e.task_id,userId]);
+   await tx.query("insert into kanban_orchestration_recovery_events(id,owner_user_id,plan_id,task_id,execution_id,event_type,details) values($1,$2,$3,$4,$5,'execution_timed_out',$6::jsonb) on conflict do nothing",[crypto.randomUUID(),userId,planId??null,e.task_id,e.id,JSON.stringify({agentId:e.agent_id})]);
+   timedOut.push(e.id);
+  }
+  return {planId:planId??null,expiredLeases,timedOutExecutions:timedOut,recovered:expiredLeases.length+timedOut.length};
+ });
+}
