@@ -55,7 +55,7 @@ export function registerKanbanTools(server: McpServer, userId: string, guard: Gu
       boardId: z.string().min(1).max(128), columnId: z.string().trim().min(1).max(128),
       title: z.string().trim().min(1).max(500), description: z.string().max(10000).default(""),
       priority: z.enum(["low", "medium", "high", "critical"]).default("medium"),
-      dueDate: z.string().date().nullable().default(null),
+      dueDate: z.string().date().nullable().default(null), idempotencyKey: z.string().trim().min(1).max(200).nullable().default(null),
     }),
   }, async (args) => audited(userId, guard, "card.create", args, () => createCard(userId, cardInputSchema.parse(args))));
 
@@ -73,7 +73,7 @@ export function registerKanbanTools(server: McpServer, userId: string, guard: Gu
     description: "Move an active card within an owned board.",
     inputSchema: z.object({
       boardId: z.string().min(1).max(128), cardId: z.string().min(1).max(128),
-      columnId: z.string().trim().min(1).max(128), beforeCardId: z.string().min(1).max(128).nullable().default(null),
+      columnId: z.string().trim().min(1).max(128), beforeCardId: z.string().min(1).max(128).nullable().default(null), idempotencyKey: z.string().trim().min(1).max(200).nullable().default(null),
     }),
   }, async (args) => audited(userId, guard, "card.move", args, () => moveCard(userId, moveCardInputSchema.parse(args))));
 
