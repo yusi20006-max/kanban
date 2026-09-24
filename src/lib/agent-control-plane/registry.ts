@@ -3,6 +3,10 @@ import { getSql } from "@/lib/db";
 import { agentRegistrationSchema, type AgentStatus } from "./contracts";
 import { appendAgentEvent } from "./history";
 
+type JsonScalar = string | number | boolean | null;
+type AgentMetadata = Record<string, JsonScalar>;
+type AgentRecord = { id:string; name:string; capabilities:string[]; metadata:AgentMetadata; status:AgentStatus; last_seen_at:string|null; created_at:string; updated_at:string };
+
 export class AgentRegistryError extends Error {
   constructor(public readonly code: "AGENT_NOT_FOUND" | "AGENT_DISABLED") { super(code); this.name = "AgentRegistryError"; }
 }
@@ -42,20 +46,15 @@ export async function unregisterAgent(userId: string, agentId: string) {
   return { id: agentId, status: "disabled" as const };
 }
 
-export async function listAgents(userId: string) {
+export async function listAgents(userId: string): Promise<AgentRecord[]> {
   const sql = await getSql();
-  return sql.query(
-    "select id,name,capabilities,metadata,status,last_seen_at,created_at,updated_at from kanban_agents where owner_user_id=$1 order by created_at,id",
-    [userId],
-  );
+  const rows=await sql.query<AgentRecord>("select id,name,capabilities,metadata,status,last_seen_at,created_at,updated_at from kanban_agents where owner_user_id=$1 order by created_at,id",[userId]);
+  return rows.map(row=>({...row,capabilities:Array.isArray(row.capabilities)?row.capabilities.map(String):[],metadata:(row.metadata&&typeof row.metadata==="object"?row.metadata:{}) as AgentMetadata}));
 }
 
-export async function getAgent(userId: string, agentId: string) {
+export async function getAgent(userId: string, agentId: string): Promise<AgentRecord> {
   const sql = await getSql();
-  const rows = await sql.query(
-    "select id,name,capabilities,metadata,status,last_seen_at,created_at,updated_at from kanban_agents where owner_user_id=$1 and id=$2",
-    [userId, agentId],
-  );
+  const rows = await sql.query<AgentRecord>("select id,name,capabilities,metadata,status,last_seen_at,created_at,updated_at from kanban_agents where owner_user_id=$1 and id=$2",[userId, agentId]);
   if (!rows[0]) throw new AgentRegistryError("AGENT_NOT_FOUND");
-  return rows[0];
+  const row=rows[0]; return {...row,capabilities:Array.isArray(row.capabilities)?row.capabilities.map(String):[],metadata:(row.metadata&&typeof row.metadata==="object"?row.metadata:{}) as AgentMetadata};
 }
