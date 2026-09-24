@@ -9,3 +9,5 @@ create table if not exists kanban_idempotency (
 
 create index if not exists kanban_idempotency_created_idx
   on kanban_idempotency(created_at);
+
+create unique index if not exists kanban_cards_board_column_position_idx on kanban_cards(board_id,column_id,position) where archived_at is null;
