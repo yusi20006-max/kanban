@@ -16,6 +16,7 @@ const buildServer = () => {
     console.error("[kanban] MCP tool registration failed:", error);
     throw error;
   }
+  console.error("[kanban] MCP registered tools:", Object.keys((server as any)._registeredTools ?? {}).length);
   return server;
 };
 
