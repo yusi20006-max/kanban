@@ -98,6 +98,8 @@ function ColumnFrame({
   isOver?: boolean;
   listRef?: (node: HTMLElement | null) => void;
   children: ReactNode;
+  cards?: Record<string, Card>;
+  onOpenCard?: (id: string) => void;
 }) {
   const meta = useBoardStore.getState().columnMeta[id] ?? { title: id, hint: "کارت‌های این ستون", tone: id };
   return (
