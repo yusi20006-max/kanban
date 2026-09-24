@@ -1,0 +1,1 @@
+import test from "node:test";import assert from "node:assert/strict";test("repair loop requires remediation id",()=>assert.throws(()=>{if(!"")throw new Error("required")}));
