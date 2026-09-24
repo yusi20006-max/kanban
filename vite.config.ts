@@ -79,36 +79,28 @@ function healthPreviewPlugin(): Plugin {
           return;
         }
 
-        try {
-          if (pathOnly === "/health/live") {
-            res.statusCode = 200;
-            res.setHeader("content-type", "application/json; charset=utf-8");
-            res.setHeader("cache-control", "no-store");
-            res.end(JSON.stringify({
-              ok: true,
-              status: "live",
-              version: process.env.APP_VERSION ?? "dev",
-            }));
-            return;
-          }
+        if (pathOnly === "/health/live") {
+          res.statusCode = 200;
+          res.setHeader("content-type", "application/json; charset=utf-8");
+          res.setHeader("cache-control", "no-store");
+          res.end(JSON.stringify({
+            ok: true,
+            status: "live",
+            version: process.env.APP_VERSION ?? "dev",
+          }));
+          return;
+        }
 
-          // Vite preview serves the already-built Nitro output. The Nitro
-          // health middleware owns readiness there; this fallback only prevents
-          // a preview adapter from turning the endpoint into an HTML 404.
-          // Keep the readiness contract conservative when the DB cannot be
-          // reached from the preview adapter.
-          const mod = (await server.ssrLoadModule("/src/lib/db.ts")) as {
-            getSql?: () => Promise<unknown>;
-          };
-          if (typeof mod.getSql !== "function") throw new Error("getSql unavailable");
-          await mod.getSql();
+        try {
+          const { previewDatabaseReady } = await import("./scripts/preview-health.mjs");
+          const database = await previewDatabaseReady(server.config.root);
           res.statusCode = 200;
           res.setHeader("content-type", "application/json; charset=utf-8");
           res.setHeader("cache-control", "no-store");
           res.end(JSON.stringify({
             ok: true,
             status: "ready",
-            database: process.env.DATABASE_URL?.trim() ? "neon" : "pglite",
+            database,
             version: process.env.APP_VERSION ?? "dev",
           }));
         } catch {
@@ -121,7 +113,6 @@ function healthPreviewPlugin(): Plugin {
     },
   };
 }
-
 function authPopupPlugin(): Plugin {
   return {
     name: "app-builder:auth-popup",
