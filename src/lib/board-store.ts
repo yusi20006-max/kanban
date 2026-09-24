@@ -96,7 +96,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     set({ syncing: true, syncError: null });
     try {
       const result = await listBoard({ data: { boardId: BOARD_ID } });
-      set({ ...fromRows(result.cards), hasHydrated: true, syncing: false });
+      set({ ...fromRows(result), hasHydrated: true, syncing: false });
     } catch (error) {
       set({
         hasHydrated: true,
