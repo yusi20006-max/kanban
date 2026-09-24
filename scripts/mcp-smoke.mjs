@@ -5,7 +5,7 @@ const child = spawn("npx", ["tsx", "src/mcp/server.ts"], {
   stdio: ["pipe", "pipe", "pipe"],
 });
 
-let buffer = "";
+let buffer = "";\nlet stderr = "";\nchild.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
 const waitForResponse = (id) => new Promise((resolve, reject) => {
   const timer = setTimeout(() => { cleanup(); reject(new Error("MCP response timeout")); }, 15000);
   const onData = (chunk) => {
@@ -58,7 +58,7 @@ const expected = [
   "kanban_list_boards", "kanban_get_board", "kanban_create_card",
   "kanban_update_card", "kanban_move_card", "kanban_archive_card", "kanban_link_github", "kanban_refresh_github", "kanban_transition_agent", "kanban_record_phase", "kanban_create_board", "kanban_update_board", "kanban_archive_board", "kanban_upsert_column", "kanban_add_label", "kanban_set_card_label", "kanban_add_checklist_item", "kanban_set_checklist_item", "kanban_add_comment", "kanban_search_cards",
 ];
-for (const name of expected) if (!names.includes(name)) throw new Error("Missing MCP tool: " + name + "; available: " + names.join(", "));
+for (const name of expected) if (!names.includes(name)) throw new Error("Missing MCP tool: " + name + "; available: " + names.join(", ") + "; stderr: " + stderr.trim());
 
 child.kill();
 console.log("MCP smoke: initialize + tools/list PASS");
