@@ -59,7 +59,7 @@ export async function releaseLease(userId: string, leaseId: string, agentId: str
     if(rows[0].agent_id!==agentId) throw new LeaseError("LEASE_NOT_OWNER");
     if(rows[0].status!=="active") return {leaseId,status:rows[0].status};
     await tx.query("update kanban_agent_leases set status='released',released_at=now() where id=$1",[leaseId]);
-    await tx.query("update kanban_agent_tasks set status='pending',updated_at=now() where id=$1 and owner_user_id=$2 and status='claimed',[rows[0].task_id,userId]");
+    await tx.query("update kanban_agent_tasks set status='pending',updated_at=now() where id=$1 and owner_user_id=$2 and status='claimed'",[rows[0].task_id,userId]);
     return {leaseId,status:"released" as const,taskId:rows[0].task_id};
   });
 }
