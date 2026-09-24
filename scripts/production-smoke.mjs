@@ -10,4 +10,4 @@ async function expect(path, predicate, label) {
 await expect("/health/live", (r) => r.ok, "liveness");
 await expect("/health/ready", (r) => r.ok, "readiness");
 await expect("/manifest.webmanifest", (r, body) => r.ok && body.includes("name"), "PWA manifest");
-await expect("/sw.js", (r, body) => r.ok && body.includes("serviceWorker"), "service worker asset");
+await expect("/sw.js", (r, body) => r.ok && body.includes("cache"), "service worker asset");
