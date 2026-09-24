@@ -1,0 +1,3 @@
+create index if not exists kanban_agent_tasks_owner_status_created_idx on kanban_agent_tasks(owner_user_id,status,created_at,board_id);
+create index if not exists kanban_orchestration_dependencies_owner_task_idx on kanban_orchestration_dependencies(owner_user_id,task_id,depends_on_task_id);
+create index if not exists kanban_ai_fallback_owner_created_model_idx on kanban_ai_fallback_attempts(owner_user_id,created_at,failed_model_id);
