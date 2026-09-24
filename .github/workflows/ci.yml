@@ -36,3 +36,6 @@ jobs:
       - run: npm run production:smoke
         env:
           BASE_URL: http://127.0.0.1:8081
+      - name: Preview log on failure
+        if: failure()
+        run: cat /tmp/kanban-preview.log
