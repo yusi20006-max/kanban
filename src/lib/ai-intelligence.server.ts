@@ -189,3 +189,32 @@ export async function aiProviderIsSelectable(sql:Awaited<ReturnType<typeof getSq
   if(rows[0].expires_at && new Date(rows[0].expires_at).getTime()<=Date.now()) return false;
   return true;
 }
+
+export const aiUsageSchema=z.object({
+  executionId:z.string().trim().min(1).max(128),
+  provider:aiProviderSchema,
+  modelId:z.string().trim().min(1).max(128).nullable().default(null),
+  inputTokens:z.number().int().nonnegative().default(0),
+  outputTokens:z.number().int().nonnegative().default(0),
+  units:z.number().int().nonnegative().default(0),
+  latencyMs:z.number().int().nonnegative().nullable().default(null),
+  estimatedCost:z.number().nonnegative().default(0),
+  currency:z.string().trim().length(3).default("USD"),
+  metadata:z.record(z.string(),z.unknown()).default({}),
+});
+export async function recordAiUsage(userId:string,input:unknown) {
+  const data=aiUsageSchema.parse(input);
+  const sql=await getSql();
+  const execution=await sql.query<{id:string;task_id:string}>("select id,task_id from kanban_agent_executions where id=$1 and owner_user_id=$2",[data.executionId,userId]);
+  if(!execution[0]) throw new Error("EXECUTION_NOT_FOUND");
+  const id=crypto.randomUUID();
+  await sql.query("insert into kanban_ai_usage(id,owner_user_id,task_id,execution_id,provider,model_id,input_tokens,output_tokens,units,latency_ms,estimated_cost,currency,metadata) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb)",[id,userId,execution[0].task_id,data.executionId,data.provider,data.modelId,data.inputTokens,data.outputTokens,data.units,data.latencyMs,data.estimatedCost,data.currency,JSON.stringify(data.metadata)]);
+  return {id,taskId:execution[0].task_id,...data};
+}
+export async function aggregateAiUsage(userId:string,taskId?:string) {
+  const sql=await getSql();
+  const params:unknown[]=[userId]; let where="where owner_user_id=$1";
+  if(taskId){params.push(taskId);where+=" and task_id=$2";}
+  const rows=await sql.query(`select provider,model_id as "modelId",count(*)::int as "executions",sum(input_tokens)::bigint as "inputTokens",sum(output_tokens)::bigint as "outputTokens",sum(units)::bigint as "units",sum(estimated_cost)::numeric as "estimatedCost",avg(latency_ms)::numeric as "avgLatencyMs",currency from kanban_ai_usage ${where} group by provider,model_id,currency order by provider,model_id`,params);
+  return rows;
+}
