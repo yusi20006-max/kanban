@@ -1,0 +1,1 @@
+import {readFileSync} from "node:fs";const pkg=JSON.parse(readFileSync("package.json","utf8"));const sha=process.env.GITHUB_SHA||"unknown";console.log(JSON.stringify({name:pkg.name,version:pkg.version||"0.1.0",commit:sha,release:"p8-p14-final"}));
