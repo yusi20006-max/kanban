@@ -17,6 +17,7 @@ import { claimTaskSchema } from "@/lib/agent-control-plane/contracts";
 import { claimTask, createAgentTask, releaseLease } from "@/lib/agent-control-plane/lease";
 import { startExecution, finishExecution } from "@/lib/agent-control-plane/execution";
 import { retryExecution, timeoutExecution, cancelExecution } from "@/lib/agent-control-plane/recovery";
+import { delegateTask, listDelegations, linkChildExecution } from "@/lib/agent-control-plane/delegation";
 import { registerAgent, unregisterAgent, listAgents, getAgent } from "@/lib/agent-control-plane/registry";
 
 type Guard = () => void | Promise<void>;
@@ -51,6 +52,21 @@ export function registerKanbanTools(server: McpServer, userId: string, guard: Gu
     description: "Start an execution attempt under the caller's active task lease.",
     inputSchema: z.object({ executionId: z.string().trim().min(1).max(128), taskId: z.string().trim().min(1).max(128), agentId: z.string().trim().min(1).max(128), timeoutSeconds: z.number().int().min(1).max(86400).nullable().default(null) }),
   }, async (args) => audited(userId, guard, "agent.execution.start", {}, () => startExecution(userId, args)));
+
+  server.registerTool("kanban_delegate_task", {
+    description: "Create a traceable child task under an owned parent task or execution.",
+    inputSchema: z.object({ parentTaskId:z.string().trim().min(1).max(128), childTaskId:z.string().trim().min(1).max(128), title:z.string().trim().min(1).max(500), boardId:z.string().trim().min(1).max(128).nullable().default(null), cardId:z.string().trim().min(1).max(128).nullable().default(null), parentExecutionId:z.string().trim().min(1).max(128).nullable().default(null) }),
+  }, async (args) => audited(userId, guard, "agent.delegate", {}, () => delegateTask(userId, args)));
+
+  server.registerTool("kanban_list_delegations", {
+    description: "List delegation links touching an owned task.",
+    inputSchema: z.object({ taskId:z.string().trim().min(1).max(128) }),
+  }, async ({ taskId }) => { try { await guard(); await assertRateLimit(userId, "mcp"); return ok(await listDelegations(userId, taskId)); } catch (e) { return fail(e); } });
+
+  server.registerTool("kanban_link_child_execution", {
+    description: "Attach an owned child execution to a delegation link.",
+    inputSchema: z.object({ delegationId:z.string().trim().min(1).max(128), childExecutionId:z.string().trim().min(1).max(128) }),
+  }, async (args) => audited(userId, guard, "agent.delegate.link", {}, () => linkChildExecution(userId, args.delegationId, args.childExecutionId)));
 
   server.registerTool("kanban_retry_execution", {
     description: "Return a failed or timed-out task to pending for a new leased execution attempt.",
