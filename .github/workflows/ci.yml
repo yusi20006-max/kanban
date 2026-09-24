@@ -21,3 +21,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Start preview
+        run: npm run preview > /tmp/kanban-preview.log 2>&1 &
+      - run: npm run production:smoke
+        env:
+          BASE_URL: http://localhost:4173
