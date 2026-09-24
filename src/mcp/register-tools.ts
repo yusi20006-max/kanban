@@ -21,7 +21,7 @@ import { delegateTask, listDelegations, linkChildExecution } from "@/lib/agent-c
 import { listExecutionHistory, listTaskHistory } from "@/lib/agent-control-plane/history";
 import { ingestIssueToCard, cardToBranch, branchToPr, refreshDeliveryCi, ciFailureToTask, verifyMerge, releaseToDone } from "@/lib/github-delivery.server";
 import { registerAgent, unregisterAgent, listAgents, getAgent } from "@/lib/agent-control-plane/registry";
-import { assignAgentRole, listAgentRoles, findAgentsForRole, createPlannerGraph, getPlannerGraph, routeSpecializedExecution, getExecutionRole, listSchedulableTasks, scheduleTask } from "@/lib/agent-control-plane/orchestration";
+import { assignAgentRole, listAgentRoles, findAgentsForRole, createPlannerGraph, getPlannerGraph, routeSpecializedExecution, getExecutionRole, listSchedulableTasks, scheduleTask, createOrchestrationGate, resolveOrchestrationGate, listOrchestrationGates, assertOrchestrationGatesClear } from "@/lib/agent-control-plane/orchestration";
 
 type Guard = () => void | Promise<void>;
 
@@ -135,6 +135,26 @@ export function registerKanbanTools(server: McpServer, userId: string, guard: Gu
     description: "Disable an owned execution agent.",
     inputSchema: z.object({ agentId: z.string().trim().min(1).max(128) }),
   }, async ({ agentId }) => audited(userId, guard, "agent.unregister", {}, () => unregisterAgent(userId, agentId)));
+
+  server.registerTool("kanban_create_orchestration_gate", {
+    description: "Create an explicit required review or security gate for an owned task.",
+    inputSchema: z.object({ taskId:z.string().trim().min(1).max(128), gateType:z.enum(["review","security"]), required:z.boolean().default(true) }),
+  }, async (args) => audited(userId, guard, "orchestration.gate.create", {}, () => createOrchestrationGate(userId,args)));
+
+  server.registerTool("kanban_resolve_orchestration_gate", {
+    description: "Resolve an owned review/security gate with auditable evidence.",
+    inputSchema: z.object({ gateId:z.string().trim().min(1).max(128), status:z.enum(["approved","rejected","blocked"]), evidence:z.record(z.string(),z.unknown()).default({}) }),
+  }, async (args) => audited(userId, guard, "orchestration.gate.resolve", {}, () => resolveOrchestrationGate(userId,args)));
+
+  server.registerTool("kanban_list_orchestration_gates", {
+    description: "List review/security gates for an owned task.",
+    inputSchema: z.object({ taskId:z.string().trim().min(1).max(128) }),
+  }, async ({taskId}) => { try { await guard(); await assertRateLimit(userId,"mcp"); return ok(await listOrchestrationGates(userId,taskId)); } catch(e){ return fail(e); } });
+
+  server.registerTool("kanban_assert_gates_clear", {
+    description: "Verify all required orchestration gates are approved before progression.",
+    inputSchema: z.object({ taskId:z.string().trim().min(1).max(128) }),
+  }, async ({taskId}) => audited(userId, guard, "orchestration.gate.assert", {}, () => assertOrchestrationGatesClear(userId,taskId)));
 
   server.registerTool("kanban_list_schedulable_tasks", {
     description: "List plan tasks whose dependencies are complete and whose leases are free.",
