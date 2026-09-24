@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getSql } from "@/lib/db";
+import { appendAgentEvent } from "./history";
 
 const schema=z.object({
   parentTaskId:z.string().trim().min(1).max(128),
@@ -25,6 +26,8 @@ export async function delegateTask(userId:string,input:unknown){
     else await tx.query("update kanban_agent_tasks set title=$1 where id=$2 and owner_user_id=$3",[data.title,data.childTaskId,userId]);
     const id=crypto.randomUUID();
     await tx.query("insert into kanban_agent_delegations(id,owner_user_id,parent_task_id,child_task_id,parent_execution_id) values($1,$2,$3,$4,$5) on conflict(parent_task_id,child_task_id) do update set parent_execution_id=excluded.parent_execution_id",[id,userId,data.parentTaskId,data.childTaskId,data.parentExecutionId]);
+    await appendAgentEvent(userId,{taskId:data.parentTaskId,executionId:data.parentExecutionId, eventType:'delegated',payload:{childTaskId:data.childTaskId}},tx);
+    await appendAgentEvent(userId,{taskId:data.childTaskId,eventType:'delegated',payload:{parentTaskId:data.parentTaskId,parentExecutionId:data.parentExecutionId}},tx);
     return {delegationId:id,parentTaskId:data.parentTaskId,childTaskId:data.childTaskId,parentExecutionId:data.parentExecutionId};
   });
 }
