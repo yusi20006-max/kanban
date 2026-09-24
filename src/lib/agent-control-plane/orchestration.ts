@@ -132,3 +132,28 @@ export async function scheduleTask(userId:string,planId:string,taskId:string,age
     return {taskId,agentId,leaseId,expiresAt:expires.toISOString(),status:"claimed" as const};
   });
 }
+
+export const gateTypeSchema=z.enum(["review","security"]);
+export const gateStatusSchema=z.enum(["pending","approved","rejected","blocked"]);
+export const createGateSchema=z.object({taskId:z.string().trim().min(1).max(128),gateType:gateTypeSchema,required:z.boolean().default(true)});
+export const resolveGateSchema=z.object({gateId:z.string().trim().min(1).max(128),status:gateStatusSchema.extract(["approved","rejected","blocked"]),evidence:z.record(z.string(),z.unknown()).default({})});
+export async function createOrchestrationGate(userId:string,input:unknown){
+ const d=createGateSchema.parse(input),sql=await getSql();
+ const t=await sql.query("select id from kanban_agent_tasks where id=$1 and owner_user_id=$2",[d.taskId,userId]); if(!t[0]) throw new Error("TASK_NOT_FOUND");
+ const id=crypto.randomUUID(); await sql.query("insert into kanban_orchestration_gates(id,owner_user_id,task_id,gate_type,required) values($1,$2,$3,$4,$5)",[id,userId,d.taskId,d.gateType,d.required]);
+ return {id,...d,status:"pending" as const};
+}
+export async function resolveOrchestrationGate(userId:string,input:unknown){
+ const d=resolveGateSchema.parse(input),sql=await getSql();
+ const rows=await sql.query("update kanban_orchestration_gates set status=$1,evidence=$2::jsonb,resolved_at=now() where id=$3 and owner_user_id=$4 returning id,task_id as \"taskId\",gate_type as \"gateType\",status,evidence,resolved_at as \"resolvedAt\"",[d.status,JSON.stringify(d.evidence),d.gateId,userId]);
+ if(!rows[0]) throw new Error("GATE_NOT_FOUND"); return rows[0];
+}
+export async function listOrchestrationGates(userId:string,taskId:string){
+ const sql=await getSql(); return sql.query("select id,task_id as \"taskId\",gate_type as \"gateType\",status,required,evidence,created_at as \"createdAt\",resolved_at as \"resolvedAt\" from kanban_orchestration_gates where owner_user_id=$1 and task_id=$2 order by created_at",[userId,taskId]);
+}
+export async function assertOrchestrationGatesClear(userId:string,taskId:string){
+ const sql=await getSql();
+ const rows=await sql.query("select gate_type as \"gateType\",status from kanban_orchestration_gates where owner_user_id=$1 and task_id=$2 and required=true and status<>'approved'",[userId,taskId]);
+ if(rows.length) throw new Error("REQUIRED_GATE_BLOCKED");
+ return {taskId,clear:true};
+}
