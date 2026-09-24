@@ -1,0 +1,3 @@
+import { createServerFn } from "@tanstack/react-start";import { authMiddleware } from "@/lib/auth/middleware";import { failureDetectionInputSchema,detectFailure,listFailureSignals } from "./failure-detection";
+export const detectFailureFn=createServerFn({method:"POST"}).middleware([authMiddleware]).inputValidator(failureDetectionInputSchema).handler(async({data,context})=>JSON.parse(JSON.stringify(await detectFailure(context.userId,data))));
+export const listFailureSignalsFn=createServerFn({method:"GET"}).middleware([authMiddleware]).handler(async({context})=>JSON.parse(JSON.stringify(await listFailureSignals(context.userId))));
