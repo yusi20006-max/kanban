@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getSql } from "@/lib/db";
 import { agentRegistrationSchema, type AgentStatus } from "./contracts";
+import { appendAgentEvent } from "./history";
 
 export class AgentRegistryError extends Error {
   constructor(public readonly code: "AGENT_NOT_FOUND" | "AGENT_DISABLED") { super(code); this.name = "AgentRegistryError"; }
@@ -19,12 +20,14 @@ export async function registerAgent(userId: string, input: z.infer<typeof agentR
       "update kanban_agents set name=$1,capabilities=$2::jsonb,metadata=$3::jsonb,status='ready',updated_at=now() where owner_user_id=$4 and id=$5",
       [data.name, JSON.stringify(data.capabilities), JSON.stringify(data.metadata), userId, data.agentId],
     );
+    await appendAgentEvent(userId,{agentId:data.agentId,eventType:'registered',fromState:existing[0].status,toState:'ready',payload:{name:data.name}});
     return { id: data.agentId, status: "ready" as const, updated: true };
   }
   await sql.query(
     "insert into kanban_agents(id,owner_user_id,name,capabilities,metadata,status,last_seen_at) values($1,$2,$3,$4::jsonb,$5::jsonb,'ready',now())",
     [data.agentId, userId, data.name, JSON.stringify(data.capabilities), JSON.stringify(data.metadata)],
   );
+  await appendAgentEvent(userId,{agentId:data.agentId,eventType:'registered',fromState:'registered',toState:'ready',payload:{name:data.name}});
   return { id: data.agentId, status: "ready" as const, updated: false };
 }
 
@@ -35,6 +38,7 @@ export async function unregisterAgent(userId: string, agentId: string) {
     [userId, agentId],
   );
   if (!result.length) throw new AgentRegistryError("AGENT_NOT_FOUND");
+  await appendAgentEvent(userId,{agentId,eventType:'disabled',fromState:'ready',toState:'disabled',payload:{}});
   return { id: agentId, status: "disabled" as const };
 }
 
