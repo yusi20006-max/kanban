@@ -75,3 +75,27 @@ export async function getPlannerGraph(userId:string,planId:string){
   const deps=await sql.query("select task_id as \"taskId\",depends_on_task_id as \"dependsOnTaskId\" from kanban_orchestration_dependencies where plan_id=$1 and owner_user_id=$2",[planId,userId]);
   return {...p[0],nodes,dependencies:deps};
 }
+
+export const routeExecutionSchema=z.object({
+  taskId:z.string().trim().min(1).max(128),
+  role:agentRoleSchema,
+  executionId:z.string().trim().min(1).max(128),
+  leaseTtlSeconds:z.number().int().min(1).max(86400).default(300),
+  timeoutSeconds:z.number().int().min(1).max(86400).nullable().default(null),
+});
+export async function routeSpecializedExecution(userId:string,input:unknown){
+  const d=routeExecutionSchema.parse(input),sql=await getSql();
+  const candidates=await findAgentsForRole(userId,d.role);
+  const agent=candidates.find((a:any)=>a.status==="ready");
+  if(!agent) throw new Error("NO_ELIGIBLE_AGENT");
+  const claim=await import("./lease").then(m=>m.claimTask(userId,{taskId:d.taskId,agentId:agent.agentId,leaseTtlSeconds:d.leaseTtlSeconds,idempotencyKey:null}));
+  const started=await import("./execution").then(m=>m.startExecution(userId,{executionId:d.executionId,taskId:d.taskId,agentId:agent.agentId,timeoutSeconds:d.timeoutSeconds}));
+  await sql.query("insert into kanban_execution_roles(execution_id,owner_user_id,role,assigned_agent_id) values($1,$2,$3,$4)",[d.executionId,userId,d.role,agent.agentId]);
+  return {...started,role:d.role,leaseId:claim.leaseId};
+}
+export async function getExecutionRole(userId:string,executionId:string){
+  const sql=await getSql();
+  const rows=await sql.query("select execution_id as \"executionId\",role,assigned_agent_id as \"assignedAgentId\",created_at as \"createdAt\" from kanban_execution_roles where execution_id=$1 and owner_user_id=$2",[executionId,userId]);
+  if(!rows[0]) throw new Error("EXECUTION_ROLE_NOT_FOUND");
+  return rows[0];
+}
