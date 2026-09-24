@@ -19,6 +19,7 @@ export async function createAgentTask(userId: string, input: unknown) {
   const data = createTaskSchema.parse(input);
   const sql = await getSql();
   await sql.query("insert into kanban_agent_tasks(id,owner_user_id,board_id,card_id,title) values($1,$2,$3,$4,$5)", [data.taskId,userId,data.boardId,data.cardId,data.title]);
+  await appendAgentEvent(userId,{taskId:data.taskId,eventType:'created',fromState:null,toState:'pending',payload:{title:data.title}});
   return { id: data.taskId, status: "pending" as const };
 }
 
