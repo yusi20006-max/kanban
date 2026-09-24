@@ -18,6 +18,7 @@ import { claimTask, createAgentTask, releaseLease } from "@/lib/agent-control-pl
 import { startExecution, finishExecution } from "@/lib/agent-control-plane/execution";
 import { retryExecution, timeoutExecution, cancelExecution } from "@/lib/agent-control-plane/recovery";
 import { delegateTask, listDelegations, linkChildExecution } from "@/lib/agent-control-plane/delegation";
+import { listExecutionHistory, listTaskHistory } from "@/lib/agent-control-plane/history";
 import { registerAgent, unregisterAgent, listAgents, getAgent } from "@/lib/agent-control-plane/registry";
 
 type Guard = () => void | Promise<void>;
@@ -52,6 +53,16 @@ export function registerKanbanTools(server: McpServer, userId: string, guard: Gu
     description: "Start an execution attempt under the caller's active task lease.",
     inputSchema: z.object({ executionId: z.string().trim().min(1).max(128), taskId: z.string().trim().min(1).max(128), agentId: z.string().trim().min(1).max(128), timeoutSeconds: z.number().int().min(1).max(86400).nullable().default(null) }),
   }, async (args) => audited(userId, guard, "agent.execution.start", {}, () => startExecution(userId, args)));
+
+  server.registerTool("kanban_execution_history", {
+    description: "Read immutable lifecycle events for an owned execution.",
+    inputSchema: z.object({ executionId:z.string().trim().min(1).max(128) }),
+  }, async ({ executionId }) => { try { await guard(); await assertRateLimit(userId, "mcp"); return ok(await listExecutionHistory(userId, executionId)); } catch (e) { return fail(e); } });
+
+  server.registerTool("kanban_task_history", {
+    description: "Read immutable lifecycle events for an owned task and its executions.",
+    inputSchema: z.object({ taskId:z.string().trim().min(1).max(128) }),
+  }, async ({ taskId }) => { try { await guard(); await assertRateLimit(userId, "mcp"); return ok(await listTaskHistory(userId, taskId)); } catch (e) { return fail(e); } });
 
   server.registerTool("kanban_delegate_task", {
     description: "Create a traceable child task under an owned parent task or execution.",

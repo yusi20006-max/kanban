@@ -20,6 +20,7 @@ import { claimTask, createAgentTask, releaseLease } from "@/lib/agent-control-pl
 import { startExecution, finishExecution } from "@/lib/agent-control-plane/execution";
 import { retryExecution, timeoutExecution, cancelExecution } from "@/lib/agent-control-plane/recovery";
 import { delegateTask, listDelegations, linkChildExecution } from "@/lib/agent-control-plane/delegation";
+import { listExecutionHistory, listTaskHistory } from "@/lib/agent-control-plane/history";
 import { registerAgent, unregisterAgent, listAgents, getAgent } from "@/lib/agent-control-plane/registry";
 
 type RequestContext = { userId: string; requestId: string };
@@ -205,3 +206,12 @@ export const listDelegationsFn = createServerFn({ method: "GET" }).middleware([a
 export const linkChildExecutionFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
   .inputValidator(z.object({ delegationId:z.string().trim().min(1).max(128), childExecutionId:z.string().trim().min(1).max(128) }))
   .handler(async ({ data, context }) => audited(context, "agent.delegate.link", {}, () => linkChildExecution(context.userId, data.delegationId, data.childExecutionId)));
+
+
+export const listExecutionHistoryFn = createServerFn({ method: "GET" }).middleware([authMiddleware])
+  .inputValidator(z.object({ executionId:z.string().trim().min(1).max(128) }))
+  .handler(async ({ data, context }) => listExecutionHistory(context.userId, data.executionId));
+
+export const listTaskHistoryFn = createServerFn({ method: "GET" }).middleware([authMiddleware])
+  .inputValidator(z.object({ taskId:z.string().trim().min(1).max(128) }))
+  .handler(async ({ data, context }) => listTaskHistory(context.userId, data.taskId));
