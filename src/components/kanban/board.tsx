@@ -20,7 +20,7 @@ import { CardDialog, type CardDialogState } from "@/components/kanban/card-dialo
 import { CardItem } from "@/components/kanban/card-item";
 import { Column } from "@/components/kanban/column";
 import { Button } from "@/components/ui/button";
-import { COLUMN_IDS, useBoardStore, type ColumnId } from "@/lib/board-store";
+import { useBoardStore, type ColumnId } from "@/lib/board-store";
 
 const dropAnimation: DropAnimation = {
   duration: 250,
@@ -63,7 +63,7 @@ export function KanbanBoard() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const total = columns.todo.length + columns.doing.length + columns.done.length;
+  const total = Object.values(columns).reduce((sum, ids) => sum + ids.length, 0);
   const activeCard = activeId ? cards[activeId] : undefined;
 
   const prefersReducedMotion = useMemo(() => {
@@ -106,7 +106,7 @@ export function KanbanBoard() {
 
   const columnRow = (
     <div className="flex h-full items-stretch gap-3 overflow-x-auto snap-x snap-mandatory lg:snap-none">
-      {COLUMN_IDS.map((id) => (
+      {Object.keys(columns).map((id) => (
         <Column
           key={id}
           id={id}
@@ -138,7 +138,7 @@ export function KanbanBoard() {
           <Button
             type="button"
             className="shrink-0"
-            onClick={() => setDialog({ mode: "create", columnId: "todo" })}
+            onClick={() => setDialog({ mode: "create", columnId: Object.keys(columns)[0] ?? "" })}
           >
             <Plus className="size-4" />
             کارت جدید
