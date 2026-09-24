@@ -2,7 +2,7 @@ const base = (process.env.BASE_URL || "http://127.0.0.1:4173").replace(/\/$/, ""
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function fetchWithRetry(url, attempts = 20, delayMs = 250) {
+async function fetchWithRetry(url, attempts = 60, delayMs = 500) {
   let lastError;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
