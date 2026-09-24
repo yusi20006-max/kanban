@@ -21,6 +21,7 @@ import { delegateTask, listDelegations, linkChildExecution } from "@/lib/agent-c
 import { listExecutionHistory, listTaskHistory } from "@/lib/agent-control-plane/history";
 import { ingestIssueToCard, cardToBranch, branchToPr, refreshDeliveryCi, ciFailureToTask, verifyMerge, releaseToDone } from "@/lib/github-delivery.server";
 import { registerAgent, unregisterAgent, listAgents, getAgent } from "@/lib/agent-control-plane/registry";
+import { assignAgentRole, listAgentRoles, findAgentsForRole } from "@/lib/agent-control-plane/orchestration";
 
 type Guard = () => void | Promise<void>;
 
@@ -134,6 +135,21 @@ export function registerKanbanTools(server: McpServer, userId: string, guard: Gu
     description: "Disable an owned execution agent.",
     inputSchema: z.object({ agentId: z.string().trim().min(1).max(128) }),
   }, async ({ agentId }) => audited(userId, guard, "agent.unregister", {}, () => unregisterAgent(userId, agentId)));
+
+  server.registerTool("kanban_assign_agent_role", {
+    description: "Assign one machine-readable orchestration role and capabilities to an owned agent.",
+    inputSchema: z.object({ agentId:z.string().trim().min(1).max(128), role:z.enum(["planner","coder","test","security","review"]), capabilities:z.array(z.string().trim().min(1).max(128)).max(100).default([]) }),
+  }, async (args) => audited(userId, guard, "orchestration.role.assign", {}, () => assignAgentRole(userId,args)));
+
+  server.registerTool("kanban_list_agent_roles", {
+    description: "List machine-readable roles assigned to owned agents.",
+    inputSchema: z.object({}),
+  }, async () => { try { await guard(); await assertRateLimit(userId,"mcp"); return ok(await listAgentRoles(userId)); } catch(e){ return fail(e); } });
+
+  server.registerTool("kanban_find_agents_for_role", {
+    description: "Find owned active agents eligible for a specific orchestration role.",
+    inputSchema: z.object({ role:z.enum(["planner","coder","test","security","review"]) }),
+  }, async ({role}) => { try { await guard(); await assertRateLimit(userId,"mcp"); return ok(await findAgentsForRole(userId,role)); } catch(e){ return fail(e); } });
 
   server.registerTool("kanban_list_agents", {
     description: "List execution agents owned by the authenticated identity.",
