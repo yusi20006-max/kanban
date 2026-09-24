@@ -270,9 +270,6 @@ export function registerKanbanTools(server: McpServer, userId: string, guard: Gu
     description: "Search active cards by title or description within an owned board.",
     inputSchema: z.object({ boardId: z.string().min(1).max(128), query: z.string().trim().min(1).max(200) }),
   }, async (args) => { try { await guard(); await assertRateLimit(userId, "mcp"); return ok(await searchCards(userId, args)); } catch (e) { return fail(e); } });
-}
-
-
 
   server.registerTool("kanban_github_issue_to_card",{description:"Ingest a GitHub Issue into an owned Kanban card idempotently.",inputSchema:z.object({boardId:z.string().min(1).max(128),repo:z.string().regex(new RegExp("^[^/]+/[^/]+$")),issueNumber:z.number().int().positive(),columnId:z.string().min(1).max(128)})},async(args)=>audited(userId,guard,"github.issue_to_card",args,()=>ingestIssueToCard(userId,args)));
   server.registerTool("kanban_github_card_to_branch",{description:"Create or reuse the deterministic GitHub branch for a card.",inputSchema:z.object({boardId:z.string().min(1).max(128),cardId:z.string().min(1).max(128),repo:z.string().regex(new RegExp("^[^/]+/[^/]+$")),base:z.string().trim().min(1).max(255).default("main")})},async(args)=>audited(userId,guard,"github.card_to_branch",args,()=>cardToBranch(userId,args)));
