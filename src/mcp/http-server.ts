@@ -26,7 +26,7 @@ function authError(status: number, message: string) {
 
 const handler = createMcpHandler(({ authInfo }) => {
   const userId = authInfo?.clientId || defaultUserId;
-  const server = new McpServer({ name: "yasin-kanban", version: "1.0.0" });
+  const server = new McpServer({ name: "yasin-kanban", version: "1.1.0" });
   registerKanbanTools(server, userId, () => undefined);
   return server;
 }, { responseMode: "json", onerror: (error) => console.error("[kanban-mcp]", error) });
