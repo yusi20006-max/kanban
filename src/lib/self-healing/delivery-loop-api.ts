@@ -1,0 +1,1 @@
+import { createServerFn } from "@tanstack/react-start";import { authMiddleware } from "@/lib/auth/middleware";import { prepareAutoDelivery } from "./delivery-loop";export const prepareAutoDeliveryFn=createServerFn({method:"POST"}).middleware([authMiddleware]).handler(async({data,context})=>JSON.parse(JSON.stringify(await prepareAutoDelivery(context.userId,data))));
