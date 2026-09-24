@@ -21,7 +21,7 @@ import { delegateTask, listDelegations, linkChildExecution } from "@/lib/agent-c
 import { listExecutionHistory, listTaskHistory } from "@/lib/agent-control-plane/history";
 import { ingestIssueToCard, cardToBranch, branchToPr, refreshDeliveryCi, ciFailureToTask, verifyMerge, releaseToDone } from "@/lib/github-delivery.server";
 import { registerAgent, unregisterAgent, listAgents, getAgent } from "@/lib/agent-control-plane/registry";
-import { assignAgentRole, listAgentRoles, findAgentsForRole, createPlannerGraph, getPlannerGraph } from "@/lib/agent-control-plane/orchestration";
+import { assignAgentRole, listAgentRoles, findAgentsForRole, createPlannerGraph, getPlannerGraph, routeSpecializedExecution, getExecutionRole } from "@/lib/agent-control-plane/orchestration";
 
 type Guard = () => void | Promise<void>;
 
@@ -135,6 +135,16 @@ export function registerKanbanTools(server: McpServer, userId: string, guard: Gu
     description: "Disable an owned execution agent.",
     inputSchema: z.object({ agentId: z.string().trim().min(1).max(128) }),
   }, async ({ agentId }) => audited(userId, guard, "agent.unregister", {}, () => unregisterAgent(userId, agentId)));
+
+  server.registerTool("kanban_route_specialized_execution", {
+    description: "Route a task to an eligible role-assigned agent and create an explicitly role-bound execution.",
+    inputSchema: z.object({ taskId:z.string().trim().min(1).max(128), role:z.enum(["planner","coder","test","security","review"]), executionId:z.string().trim().min(1).max(128), leaseTtlSeconds:z.number().int().min(1).max(86400).default(300), timeoutSeconds:z.number().int().min(1).max(86400).nullable().default(null) }),
+  }, async (args) => audited(userId, guard, "orchestration.route", {}, () => routeSpecializedExecution(userId,args)));
+
+  server.registerTool("kanban_get_execution_role", {
+    description: "Read the explicit role and agent assignment for an owned execution.",
+    inputSchema: z.object({ executionId:z.string().trim().min(1).max(128) }),
+  }, async ({executionId}) => { try { await guard(); await assertRateLimit(userId,"mcp"); return ok(await getExecutionRole(userId,executionId)); } catch(e){ return fail(e); } });
 
   server.registerTool("kanban_create_planner_graph", {
     description: "Persist a high-level task decomposition with roles, acceptance criteria, and dependencies.",
