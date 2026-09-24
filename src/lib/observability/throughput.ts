@@ -13,7 +13,7 @@ export async function measureThroughputAndCycleTime(userId:string,input:unknown)
   const data=throughputMetricsInputSchema.parse(input);
   if(data.to<=data.from) throw new Error("INVALID_TIME_RANGE");
   const sql=await getSql();
-  const params:[unknown]=[userId,data.from.toISOString(),data.to.toISOString()];
+  const params:unknown[]=[userId,data.from.toISOString(),data.to.toISOString()];
   const filters=["e.owner_user_id=$1","e.status='succeeded'","e.ended_at >= $2","e.ended_at < $3"];
   if(data.boardId){params.push(data.boardId);filters.push("t.board_id=$"+params.length);}
   if(data.agentId){params.push(data.agentId);filters.push("e.agent_id=$"+params.length);}
