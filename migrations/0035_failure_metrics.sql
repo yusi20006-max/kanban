@@ -1,0 +1,2 @@
+create index if not exists kanban_agent_executions_owner_end_status_idx on kanban_agent_executions(owner_user_id,ended_at,status,agent_id,attempt);
+create index if not exists kanban_github_deliveries_owner_ci_observed_idx on kanban_github_deliveries(owner_user_id,ci_observed_at,ci_state);
