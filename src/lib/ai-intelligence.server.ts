@@ -63,3 +63,62 @@ export async function getAiModel(id: string) {
   const rows=await sql.query("select id,provider,model,display_name as \"displayName\",capabilities,availability,enabled,metadata,created_at as \"createdAt\",updated_at as \"updatedAt\" from kanban_ai_models where id=$1",[id]);
   return rows[0] ?? null;
 }
+
+export const aiRoutingRequirementsSchema = z.object({
+  capabilities: z.array(z.string().trim().min(1).max(128)).default([]),
+  preferredProviders: z.array(aiProviderSchema).default([]),
+  minContextWindow: z.number().int().positive().optional(),
+  requireToolCalling: z.boolean().default(false),
+  requireStructuredOutput: z.boolean().default(false),
+  requireReasoning: z.boolean().default(false),
+  requireLocal: z.boolean().default(false),
+});
+export type AiRoutingRequirements = z.infer<typeof aiRoutingRequirementsSchema>;
+
+function stableJson(value: unknown): string {
+  return JSON.stringify(value, Object.keys(value as object).sort());
+}
+async function sha256(value: string): Promise<string> {
+  const bytes=new TextEncoder().encode(value);
+  const digest=await crypto.subtle.digest("SHA-256",bytes);
+  return Array.from(new Uint8Array(digest)).map(v=>v.toString(16).padStart(2,"0")).join("");
+}
+
+export async function routeAiTask(userId: string, taskId: string, input: unknown) {
+  const requirements=aiRoutingRequirementsSchema.parse(input);
+  const sql=await getSql();
+  const task=await sql.query<{id:string}>("select id from kanban_agent_tasks where id=$1 and owner_user_id=$2",[taskId,userId]);
+  if(!task[0]) throw new Error("TASK_NOT_FOUND");
+  const models=await listAiModels() as Array<AiModel & {id:string}>;
+  const required=new Set(requirements.capabilities);
+  const candidates=models.filter(model=>{
+    if(!model.enabled || model.availability==="unavailable") return false;
+    const c=model.capabilities as Record<string,unknown>;
+    const names=new Set(Object.entries(c).filter(([,v])=>v===true).map(([k])=>k));
+    if([...required].some(x=>!names.has(x))) return false;
+    if(requirements.minContextWindow && Number(c.contextWindow??0)<requirements.minContextWindow) return false;
+    if(requirements.requireToolCalling && c.toolCalling!==true) return false;
+    if(requirements.requireStructuredOutput && c.structuredOutput!==true) return false;
+    if(requirements.requireReasoning && c.reasoning!==true) return false;
+    if(requirements.requireLocal && c.local!==true) return false;
+    return true;
+  }).sort((a,b)=>{
+    const ap=requirements.preferredProviders.indexOf(a.provider), bp=requirements.preferredProviders.indexOf(b.provider);
+    const as=ap<0?requirements.preferredProviders.length:ap, bs=bp<0?requirements.preferredProviders.length:bp;
+    return as-bs || a.provider.localeCompare(b.provider) || a.model.localeCompare(b.model);
+  });
+  if(!candidates.length) throw new Error("NO_CAPABLE_MODEL");
+  const selected=candidates[0];
+  const canonical=stableJson({taskId,requirements,selectedModelId:selected.id,candidates:candidates.map(c=>c.id)});
+  const decisionHash=await sha256(canonical);
+  const existing=await sql.query("select id,task_id,selected_model_id as \"selectedModelId\",requirements,candidates,decision_hash as \"decisionHash\",created_at as \"createdAt\" from kanban_ai_routing_decisions where owner_user_id=$1 and task_id=$2 and decision_hash=$3",[userId,taskId,decisionHash]);
+  if(existing[0]) return {...existing[0],idempotent:true};
+  const id=crypto.randomUUID();
+  await sql.query("insert into kanban_ai_routing_decisions(id,owner_user_id,task_id,selected_model_id,requirements,candidates,decision_hash) values($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7)",[id,userId,taskId,selected.id,JSON.stringify(requirements),JSON.stringify(candidates.map(c=>c.id)),decisionHash]);
+  return {id,taskId,selectedModelId:selected.id,requirements,candidates:candidates.map(c=>c.id),decisionHash,idempotent:false};
+}
+
+export async function listAiRoutingDecisions(userId:string,taskId:string) {
+  const sql=await getSql();
+  return sql.query("select id,task_id as \"taskId\",selected_model_id as \"selectedModelId\",requirements,candidates,decision_hash as \"decisionHash\",created_at as \"createdAt\" from kanban_ai_routing_decisions where owner_user_id=$1 and task_id=$2 order by created_at desc",[userId,taskId]);
+}
