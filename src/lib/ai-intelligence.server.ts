@@ -91,19 +91,21 @@ export async function routeAiTask(userId: string, taskId: string, input: unknown
   if(!task[0]) throw new Error("TASK_NOT_FOUND");
   const models=await listAiModels() as Array<AiModel & {id:string}>;
   const required=new Set(requirements.capabilities);
-  const candidates=models.filter(model=>{
-    if(!model.enabled || model.availability==="unavailable") return false;
+  const candidates=[] as Array<AiModel & {id:string}>;
+  for (const model of models) {
+    if (!(await aiProviderIsSelectable(sql,userId,model.provider))) continue;
     const c=model.capabilities as Record<string,unknown>;
+    if (!model.enabled || model.availability==="unavailable") continue;
     const names=new Set(Object.entries(c).filter(([,v])=>v===true).map(([k])=>k));
-    if([...required].some(x=>!names.has(x))) return false;
-    if(requirements.minContextWindow && Number(c.contextWindow??0)<requirements.minContextWindow) return false;
-    if(requirements.requireToolCalling && c.toolCalling!==true) return false;
-    if(requirements.requireStructuredOutput && c.structuredOutput!==true) return false;
-    if(requirements.requireReasoning && c.reasoning!==true) return false;
-    if(requirements.requireLocal && c.local!==true) return false;
-    return true;
-  }).sort((a,b)=>{
-    const ap=requirements.preferredProviders.indexOf(a.provider), bp=requirements.preferredProviders.indexOf(b.provider);
+    if([...required].some(x=>!names.has(x))) continue;
+    if(requirements.minContextWindow && Number(c.contextWindow??0)<requirements.minContextWindow) continue;
+    if(requirements.requireToolCalling && c.toolCalling!==true) continue;
+    if(requirements.requireStructuredOutput && c.structuredOutput!==true) continue;
+    if(requirements.requireReasoning && c.reasoning!==true) continue;
+    if(requirements.requireLocal && c.local!==true) continue;
+    candidates.push(model);
+  }
+  candidates.sort((a,b)=>{    const ap=requirements.preferredProviders.indexOf(a.provider), bp=requirements.preferredProviders.indexOf(b.provider);
     const as=ap<0?requirements.preferredProviders.length:ap, bs=bp<0?requirements.preferredProviders.length:bp;
     return as-bs || a.provider.localeCompare(b.provider) || a.model.localeCompare(b.model);
   });
@@ -146,4 +148,44 @@ export async function planAiFallback(userId:string, taskId:string, input:unknown
   const id=crypto.randomUUID();
   await sql.query("insert into kanban_ai_fallback_attempts(id,owner_user_id,task_id,failed_model_id,fallback_model_id,reason,retry_safe,sequence) values($1,$2,$3,$4,$5,$6,$7,$8)",[id,userId,taskId,data.failedModelId,nextId,data.reason,data.retrySafe,sequence]);
   return {id,taskId,failedModelId:data.failedModelId,fallbackModelId:nextId,reason:data.reason,retrySafe:data.retrySafe,sequence,exhausted:nextId===null};
+}
+
+export const aiTokenHealthStateSchema=z.enum(["healthy","unhealthy","expired","missing","unknown"]);
+export type AiTokenHealthState=z.infer<typeof aiTokenHealthStateSchema>;
+
+const providerEnv: Record<z.infer<typeof aiProviderSchema>, string|undefined>={
+  gemini: "GEMINI_API_KEY",
+  qwen: "QWEN_API_KEY",
+  "yasin-ai": "YASIN_AI_API_KEY",
+};
+
+export async function checkAiTokenHealth(userId:string, provider: z.infer<typeof aiProviderSchema>, input?: {state?:AiTokenHealthState;errorCode?:string|null;expiresAt?:string|null}) {
+  const sql=await getSql();
+  const envName=providerEnv[provider];
+  const configured=Boolean(envName && process.env[envName]?.trim());
+  const requested=input?.state;
+  const state=requested ?? (configured ? "unknown" : "missing");
+  if(input?.expiresAt && new Date(input.expiresAt).getTime()<=Date.now()) {
+    return upsertTokenHealth(sql,userId,provider,"expired","TOKEN_EXPIRED",input.expiresAt);
+  }
+  return upsertTokenHealth(sql,userId,provider,state,input?.errorCode??(state==="missing"?"TOKEN_NOT_CONFIGURED":null),input?.expiresAt??null);
+}
+
+async function upsertTokenHealth(sql:Awaited<ReturnType<typeof getSql>>,userId:string,provider:z.infer<typeof aiProviderSchema>,state:AiTokenHealthState,errorCode:string|null,expiresAt:string|null){
+  const id=crypto.randomUUID();
+  await sql.query("insert into kanban_ai_token_health(id,owner_user_id,provider,state,error_code,expires_at,checked_at) values($1,$2,$3,$4,$5,$6,now()) on conflict(owner_user_id,provider) do update set state=excluded.state,error_code=excluded.error_code,expires_at=excluded.expires_at,checked_at=now()",[id,userId,provider,state,errorCode,expiresAt]);
+  return {provider,state,errorCode,expiresAt,checkedAt:new Date().toISOString()};
+}
+
+export async function listAiTokenHealth(userId:string) {
+  const sql=await getSql();
+  return sql.query("select provider,state,error_code as \"errorCode\",expires_at as \"expiresAt\",checked_at as \"checkedAt\" from kanban_ai_token_health where owner_user_id=$1 order by provider",[userId]);
+}
+
+export async function aiProviderIsSelectable(sql:Awaited<ReturnType<typeof getSql>>,userId:string,provider:string) {
+  const rows=await sql.query<{state:string;expires_at:string|null}>("select state,expires_at from kanban_ai_token_health where owner_user_id=$1 and provider=$2",[userId,provider]);
+  if(!rows[0]) return true;
+  if(rows[0].state==="unhealthy"||rows[0].state==="expired"||rows[0].state==="missing") return false;
+  if(rows[0].expires_at && new Date(rows[0].expires_at).getTime()<=Date.now()) return false;
+  return true;
 }
