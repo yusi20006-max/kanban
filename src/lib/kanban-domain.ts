@@ -86,18 +86,18 @@ export async function createCard(userId:string,data:CardInput) {
 export async function updateCard(userId:string,data:UpdateCardInput) {
   const sql=await assertBoardOwner(userId,data.boardId);
   await assertColumnOnBoard(sql,data.boardId,data.columnId);
-  const result=await sql.query(
-    "update kanban_cards set column_id=$1,title=$2,description=$3,priority=$4,due_date=$5,updated_at=now() where id=$6 and board_id=$7 and archived_at is null",
+  const updated=await sql.query<{id:string}>(
+    "update kanban_cards set column_id=$1,title=$2,description=$3,priority=$4,due_date=$5,updated_at=now() where id=$6 and board_id=$7 and archived_at is null returning id",
     [data.columnId,data.title,data.description,data.priority,data.dueDate,data.cardId,data.boardId],
   );
-  if(result.length===0) throw new DomainError("CARD_NOT_FOUND");
+  if(updated.length===0) throw new DomainError("CARD_NOT_FOUND");
   return {ok:true};
 }
 
 export async function archiveCard(userId:string,data:z.infer<typeof archiveCardInputSchema>) {
   const sql=await assertBoardOwner(userId,data.boardId);
-  const result=await sql.query("update kanban_cards set archived_at=now(),updated_at=now() where id=$1 and board_id=$2 and archived_at is null",[data.cardId,data.boardId]);
-  if(result.length===0) throw new DomainError("CARD_NOT_FOUND");
+  const archived=await sql.query<{id:string}>("update kanban_cards set archived_at=now(),updated_at=now() where id=$1 and board_id=$2 and archived_at is null returning id",[data.cardId,data.boardId]);
+  if(archived.length===0) throw new DomainError("CARD_NOT_FOUND");
   return {ok:true};
 }
 
