@@ -4,6 +4,7 @@ import { classifyDetectedFailure } from "./failure-classification.ts";
 import type { DetectionContract } from "./detection-contract.ts";
 
 const base: DetectionContract = {
+  source: "check",
   identifier: "run-42",
   detectedAt: "2026-09-28T20:00:00+00:00",
   commitSha: null,
