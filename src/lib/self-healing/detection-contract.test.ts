@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { detectionFingerprint, parseDetectionContract } from "./detection-contract";
+import { detectionFingerprint, parseDetectionContract } from "./detection-contract.ts";
 
 const base = {
   source: "ci",
