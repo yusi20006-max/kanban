@@ -37,6 +37,8 @@ jobs:
       - run: npm run integration:smoke
         env:
           BASE_URL: http://127.0.0.1:8081
+      - name: Validate release version contract
+        run: RELEASE_TAG="v$(node -p "require('./package.json').version")" npm run release:check
       - name: Preview log on failure
         if: failure()
         run: cat /tmp/kanban-preview.log
