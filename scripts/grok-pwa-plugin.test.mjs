@@ -501,6 +501,15 @@ test("vite config keeps the nitro serverDir wiring", () => {
   assert.match(viteConfig, /grokPwaPlugin\(\)/);
 });
 
+test("preview serves the Service Worker from the source public asset", () => {
+  const viteConfig = readFileSync(join(TEMPLATE_ROOT, "vite.config.ts"), "utf8");
+  assert.match(viteConfig, /pathOnly === "\/sw\.js"/);
+  assert.match(viteConfig, /readFileSync\(join\(server\.config\.root, "public\/sw\.js"\)\)/);
+  const serviceWorker = readFileSync(join(TEMPLATE_ROOT, "public/sw.js"), "utf8");
+  assert.match(serviceWorker, /self\.addEventListener\("install"/);
+  assert.match(serviceWorker, /caches\.open\(CACHE\)/);
+});
+
 test("nitro middleware and its bundled assets exist", () => {
   const middleware = readFileSync(join(TEMPLATE_ROOT, "server/middleware/grok-pwa.ts"), "utf8");
   assert.match(middleware, /install-page\.html\?raw/);
