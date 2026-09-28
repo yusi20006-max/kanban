@@ -29,7 +29,8 @@
     "mcp:http:smoke": "node scripts/mcp-http-smoke.mjs",
     "production:smoke": "node scripts/production-smoke.mjs",
     "integration:smoke": "node scripts/final-integration-smoke.mjs",
-    "release:metadata": "node scripts/release-metadata.mjs"
+    "release:metadata": "node scripts/release-metadata.mjs",
+    "release:check": "node scripts/release-check.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
