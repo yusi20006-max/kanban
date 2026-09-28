@@ -1,48 +1,26 @@
-import { z } from "zod";
 import { getSql } from "@/lib/db";
-import {
-  detectionContractSchema,
-  detectionFingerprint,
-  parseDetectionContract,
-} from "./detection-contract";
-
-export const failureDetectionInputSchema = detectionContractSchema.extend({
-  taskId: z.string().trim().min(1).max(128).nullable().optional(),
-  executionId: z.string().trim().min(1).max(128).nullable().optional(),
-  runId: z.number().int().positive().nullable().optional(),
-});
-
-export function classifyFailure(
-  source: "execution" | "ci" | "check",
-  evidence: Record<string, unknown>,
-) {
-  if (source === "ci") return evidence.conclusion === "failure" ? "ci_failure" : "ci_check_failure";
-  if (source === "check") return "check_failure";
-  const status = String(evidence.status ?? "failed");
-  return status === "timed_out"
-    ? "execution_timeout"
-    : status === "cancelled"
-      ? "execution_cancelled"
-      : status === "failed"
-        ? "execution_failure"
-        : "execution_unknown";
-}
+import { parseDetectionContract, detectionFingerprint } from "./detection-contract";
 
 export async function detectFailure(userId: string, input: unknown) {
   const detection = parseDetectionContract(input);
-  const type = classifyFailure(detection.source, detection.evidence);
-  const fingerprint = detectionFingerprint(detection);
-  const sql = await getSql();
+  const failureType =
+    detection.source === "ci"
+      ? detection.evidence.conclusion === "failure" ? "ci_failure" : "ci_check_failure"
+      : detection.source === "check"
+        ? "check_failure"
+        : "execution_failure";
 
+  const sql = await getSql();
+  const fingerprint = detectionFingerprint(detection);
   const rows = await sql.query(
-    "insert into kanban_failure_signals(id,owner_user_id,task_id,execution_id,source,failure_type,fingerprint,evidence,identifier,detected_commit_sha,severity,signal_type,detected_at) values($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10,$11,$12,$13) on conflict(owner_user_id,fingerprint) do update set evidence=excluded.evidence,identifier=excluded.identifier,detected_commit_sha=excluded.detected_commit_sha,severity=excluded.severity,signal_type=excluded.signal_type,detected_at=excluded.detected_at returning id,task_id,execution_id,source,failure_type,fingerprint,evidence,identifier,detected_commit_sha as "commitSha",severity,signal_type as "signalType",detected_at as "detectedAt"",
+    'insert into kanban_failure_signals(id,owner_user_id,task_id,execution_id,source,failure_type,fingerprint,evidence,identifier,detected_commit_sha,severity,signal_type,detected_at) values($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10,$11,$12,$13) on conflict(owner_user_id,fingerprint) do update set evidence=excluded.evidence,identifier=excluded.identifier,detected_commit_sha=excluded.detected_commit_sha,severity=excluded.severity,signal_type=excluded.signal_type,detected_at=excluded.detected_at returning id,task_id,execution_id,source,failure_type,fingerprint,evidence,identifier,detected_commit_sha as "commitSha",severity,signal_type as "signalType",detected_at as "detectedAt"',
     [
       crypto.randomUUID(),
       userId,
       detection.taskId,
       detection.executionId,
       detection.source,
-      type,
+      failureType,
       fingerprint,
       JSON.stringify(detection.evidence),
       detection.identifier,
