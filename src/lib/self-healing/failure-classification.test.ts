@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { classifyDetectedFailure } from "./failure-classification.ts";
+import type { DetectionContract } from "./detection-contract.ts";
 
-const base = {
+const base: DetectionContract = {
   identifier: "run-42",
   detectedAt: "2026-09-28T20:00:00+00:00",
   commitSha: null,
