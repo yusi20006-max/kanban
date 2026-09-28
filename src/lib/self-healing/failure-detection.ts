@@ -1,5 +1,7 @@
 import { getSql } from "@/lib/db";
-import { parseDetectionContract, detectionFingerprint } from "./detection-contract";
+import { detectionContractSchema, parseDetectionContract, detectionFingerprint } from "./detection-contract";
+
+export const failureDetectionInputSchema = detectionContractSchema;
 
 export function classifyFailure(
   source: "execution" | "ci" | "check",
