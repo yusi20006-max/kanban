@@ -1,14 +1,25 @@
 import { getSql } from "@/lib/db";
 import { parseDetectionContract, detectionFingerprint } from "./detection-contract";
 
+export function classifyFailure(
+  source: "execution" | "ci" | "check",
+  evidence: Record<string, unknown>,
+) {
+  if (source === "ci") return evidence.conclusion === "failure" ? "ci_failure" : "ci_check_failure";
+  if (source === "check") return "check_failure";
+  const status = String(evidence.status ?? "failed");
+  return status === "timed_out"
+    ? "execution_timeout"
+    : status === "cancelled"
+      ? "execution_cancelled"
+      : status === "failed"
+        ? "execution_failure"
+        : "execution_unknown";
+}
+
 export async function detectFailure(userId: string, input: unknown) {
   const detection = parseDetectionContract(input);
-  const failureType =
-    detection.source === "ci"
-      ? detection.evidence.conclusion === "failure" ? "ci_failure" : "ci_check_failure"
-      : detection.source === "check"
-        ? "check_failure"
-        : "execution_failure";
+  const failureType = classifyFailure(detection.source, detection.evidence);
 
   const sql = await getSql();
   const fingerprint = detectionFingerprint(detection);
