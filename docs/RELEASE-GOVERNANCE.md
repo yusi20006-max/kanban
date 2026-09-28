@@ -18,7 +18,7 @@ A release is identified by the immutable tuple:
 
 `npm run release:check` validates that a supplied release tag exactly matches `v<package.version>` and, in CI, that `GITHUB_SHA` matches the checked-out commit.
 
-The `Release Governance` workflow runs on future `v* ` tag pushes and blocks the governance job when the relationship is inconsistent.
+The `Release Governance` workflow runs on future `v*` tag pushes and blocks the governance job when the relationship is inconsistent.
 
 ## Existing releases
 
