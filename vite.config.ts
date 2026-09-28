@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
@@ -67,6 +67,24 @@ function healthPreviewPlugin(): Plugin {
     configurePreviewServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const pathOnly = (req.url ?? "").split("?", 1)[0] ?? "";
+        if (pathOnly === "/sw.js") {
+          if ((req.method ?? "GET").toUpperCase() !== "GET") {
+            res.statusCode = 405;
+            res.setHeader("content-type", "text/plain; charset=utf-8");
+            res.end("Method Not Allowed");
+            return;
+          }
+          try {
+            const serviceWorker = readFileSync(join(server.config.root, "public/sw.js"));
+            res.statusCode = 200;
+            res.setHeader("content-type", "application/javascript; charset=utf-8");
+            res.setHeader("cache-control", "no-cache");
+            res.end(serviceWorker);
+          } catch {
+            next();
+          }
+          return;
+        }
         if (pathOnly !== "/health/live" && pathOnly !== "/health/ready") {
           next();
           return;

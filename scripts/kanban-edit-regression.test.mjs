@@ -13,8 +13,8 @@ test("updateCard uses RETURNING for successful UPDATE detection (#135)", async (
   const end = source.indexOf("export async function archiveCard");
   assert.ok(start >= 0 && end > start);
   const block = source.slice(start, end);
-  assert.match(block, /update\\s+kanban_cards[\\s\\S]*?returning\\s+id/i);
-  assert.match(block, /updated\\.length\\s*===\\s*0/);
+  assert.match(block, /update\s+kanban_cards[\s\S]*?returning\s+id/i);
+  assert.match(block, /updated\.length\s*===\s*0/);
   assert.match(block, /CARD_NOT_FOUND/);
 });
 
@@ -24,8 +24,8 @@ test("archiveCard uses RETURNING for the same Sql result contract (#135)", async
   const end = source.indexOf("export async function moveCard");
   assert.ok(start >= 0 && end > start);
   const block = source.slice(start, end);
-  assert.match(block, /update\\s+kanban_cards[\\s\\S]*?returning\\s+id/i);
-  assert.match(block, /archived\\.length\\s*===\\s*0/);
+  assert.match(block, /update\s+kanban_cards[\s\S]*?returning\s+id/i);
+  assert.match(block, /archived\.length\s*===\s*0/);
 });
 
 test("updateCard SQL persists all editable fields (#135)", async () => {
