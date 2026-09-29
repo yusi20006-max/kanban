@@ -44,7 +44,7 @@ export async function verifyRecovery(userId: string, input: unknown) {
 
   const state = evaluateRecoveryEvidence(d);
   await sql.query(
-    "update kanban_remediation_tasks set verification_state=$1,verification_evidence=$2::jsonb,verified_at=now(),status=case when $1='recovered' then 'resolved' when $1='unrecovered' then 'active' else status end,resolved_at=case when $1='recovered' then now() else resolved_at end where id=$3 and owner_user_id=$4",
+    "update kanban_remediation_tasks set verification_state=$1,verification_evidence=$2::jsonb,verified_at=now(),status=status where id=$3 and owner_user_id=$4",
     [state, JSON.stringify({ executionId: d.executionId, checks: d.checks, reproduced: d.reproduced }), d.remediationId, userId],
   );
   return { remediationId: d.remediationId, executionId: d.executionId, state, evidence: d.checks };
