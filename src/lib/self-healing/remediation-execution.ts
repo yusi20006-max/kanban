@@ -3,6 +3,9 @@ import { getSql } from "@/lib/db";
 import { appendAgentEvent } from "@/lib/agent-control-plane/history";
 import { finishExecution } from "@/lib/agent-control-plane/execution";
 import { assignAndStartRepair } from "./repair-loop";
+import { deriveRemediationExecutionStatus } from "./remediation-execution-contract";
+
+export { deriveRemediationExecutionStatus };
 
 export const remediationExecutionOutcomeSchema = z.object({
   remediationId: z.string().trim().min(1).max(128),
@@ -10,19 +13,11 @@ export const remediationExecutionOutcomeSchema = z.object({
   fix: z.object({ passed: z.boolean(), evidence: z.record(z.string(), z.unknown()) }),
   test: z.object({ passed: z.boolean(), evidence: z.record(z.string(), z.unknown()) }),
 });
-
 export const remediationTerminalSchema = z.object({
   remediationId: z.string().trim().min(1).max(128),
   executionId: z.string().trim().min(1).max(128),
   reason: z.string().trim().min(1).max(256).optional(),
 });
-
-export function deriveRemediationExecutionStatus(
-  fixPassed: boolean,
-  testPassed: boolean,
-): "succeeded" | "failed" {
-  return fixPassed && testPassed ? "succeeded" : "failed";
-}
 
 export async function startRemediationExecution(userId: string, input: unknown) {
   return assignAndStartRepair(userId, input);
@@ -31,8 +26,8 @@ export async function startRemediationExecution(userId: string, input: unknown) 
 export async function finishRemediationExecution(userId: string, input: unknown) {
   const d = remediationExecutionOutcomeSchema.parse(input);
   const sql = await getSql();
-  const rows = await sql.query<{ task_id: string; failure_signal_id: string; status: string }>(
-    "select task_id,failure_signal_id,status from kanban_remediation_tasks where id=$1 and owner_user_id=$2",
+  const rows = await sql.query<{ task_id: string; failure_signal_id: string }>(
+    "select task_id,failure_signal_id from kanban_remediation_tasks where id=$1 and owner_user_id=$2",
     [d.remediationId, userId],
   );
   if (!rows[0]) throw new Error("REMEDIATION_NOT_FOUND");
@@ -51,7 +46,6 @@ export async function finishRemediationExecution(userId: string, input: unknown)
     result,
     error: status === "failed" ? { code: "REMEDIATION_FIX_OR_TEST_FAILED" } : null,
   });
-
   await sql.query(
     "update kanban_remediation_tasks set retry_after=case when $1='failed' then now()+interval '30 seconds' else null end,terminal_reason=case when $1='failed' then 'fix_or_test_failed' else null end where id=$2 and owner_user_id=$3",
     [status, d.remediationId, userId],
@@ -71,21 +65,15 @@ export async function finishRemediationExecution(userId: string, input: unknown)
 export async function cancelRemediationExecution(userId: string, input: unknown) {
   return finishRemediationTerminal(userId, input, "cancelled", "remediation_cancelled");
 }
-
 export async function timeoutRemediationExecution(userId: string, input: unknown) {
   return finishRemediationTerminal(userId, input, "timed_out", "remediation_timeout");
 }
 
-async function finishRemediationTerminal(
-  userId: string,
-  input: unknown,
-  status: "cancelled" | "timed_out",
-  reason: string,
-) {
+async function finishRemediationTerminal(userId: string, input: unknown, status: "cancelled" | "timed_out", reason: string) {
   const d = remediationTerminalSchema.parse(input);
   const sql = await getSql();
-  const rows = await sql.query<{ task_id: string; status: string }>(
-    "select task_id,status from kanban_remediation_tasks where id=$1 and owner_user_id=$2",
+  const rows = await sql.query<{ task_id: string }>(
+    "select task_id from kanban_remediation_tasks where id=$1 and owner_user_id=$2",
     [d.remediationId, userId],
   );
   if (!rows[0]) throw new Error("REMEDIATION_NOT_FOUND");
