@@ -6,7 +6,7 @@ import { prepareAutoDelivery } from "./delivery-loop";
 import { mergeDeliveryPr } from "./delivery-merge";
 import { verifyAndClose } from "./verify-close";
 
-const schema=z.object({failureSignalId:z.string().min(1).max(128),agentId:z.string().min(1).max(128).optional(),capability:z.string().min(1).max(128).optional(),boardId:z.string().min(1).optional(),cardId:z.string().min(1).optional(),repo:z.string().regex(/^[^/]+\\/[^/]+$/).optional(),title:z.string().optional(),body:z.string().optional(),recovery:z.object({originalFailureFingerprint:z.string().min(1),reproduced:z.boolean(),checks:z.array(z.object({name:z.string().min(1),passed:z.boolean(),evidence:z.record(z.string(),z.unknown())})).min(1)}),fix:z.object({passed:z.boolean(),evidence:z.record(z.string(),z.unknown())}),test:z.object({passed:z.boolean(),evidence:z.record(z.string(),z.unknown())})});
+const schema=z.object({failureSignalId:z.string().min(1).max(128),agentId:z.string().min(1).max(128).optional(),capability:z.string().min(1).max(128).optional(),boardId:z.string().min(1).optional(),cardId:z.string().min(1).optional(),repo:z.string().regex(/^[^/]+\/[^/]+$/).optional(),title:z.string().optional(),body:z.string().optional(),recovery:z.object({originalFailureFingerprint:z.string().min(1),reproduced:z.boolean(),checks:z.array(z.object({name:z.string().min(1),passed:z.boolean(),evidence:z.record(z.string(),z.unknown())})).min(1)}),fix:z.object({passed:z.boolean(),evidence:z.record(z.string(),z.unknown())}),test:z.object({passed:z.boolean(),evidence:z.record(z.string(),z.unknown())})});
 
 export async function runPhase14Remediation(userId:string,input:unknown){
  const d=schema.parse(input);const correlationId=crypto.randomUUID();
