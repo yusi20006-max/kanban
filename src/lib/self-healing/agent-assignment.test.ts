@@ -1,12 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { assignmentRequestSchema } from "./agent-assignment.ts";
 
-test("assignment capability mapping is deterministic", async () => {
-  const { assignmentRequestSchema } = await import("./agent-assignment.ts");
-  assert.equal(assignmentRequestSchema.parse({ taskId:"t1", failureCategory:"ci" }).failureCategory, "ci");
+test("assignment capability mapping input is deterministic", () => {
+  assert.equal(assignmentRequestSchema.parse({ taskId: "t1", failureCategory: "ci" }).failureCategory, "ci");
 });
 
-test("unsupported failure category is rejected before assignment", async () => {
-  const { assignmentRequestSchema } = await import("./agent-assignment.ts");
-  assert.throws(() => assignmentRequestSchema.parse({ taskId:"t1", failureCategory:"unknown" }));
+test("unsupported failure category is rejected before assignment", () => {
+  assert.throws(() => assignmentRequestSchema.parse({ taskId: "t1", failureCategory: "unknown" }));
 });
