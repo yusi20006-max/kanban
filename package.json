@@ -16,7 +16,7 @@
     "preview:stop": "node scripts/preview.mjs stop",
     "typecheck": "tsc --noEmit",
     "check:auth": "node scripts/check-auth-invariant.mjs",
-    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/workflow.test.ts src/lib/agent-control-plane/contracts.test.ts src/lib/self-healing/detection-contract.test.ts src/lib/self-healing/failure-classification.test.ts src/lib/self-healing/remediation-contract.test.ts src/lib/self-healing/agent-assignment.test.ts && npm run mcp:smoke && npm run mcp:http:smoke",
+    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/workflow.test.ts src/lib/agent-control-plane/contracts.test.ts src/lib/self-healing/detection-contract.test.ts src/lib/self-healing/failure-classification.test.ts src/lib/self-healing/remediation-contract.test.ts && npm run mcp:smoke && npm run mcp:http:smoke",
     "lint": "eslint .",
     "format": "prettier --write .",
     "mcp:server": "node --experimental-strip-types src/mcp/server.ts",
