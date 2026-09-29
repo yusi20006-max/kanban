@@ -38,6 +38,7 @@ export async function createRemediationTask(userId: string, input: unknown) {
     executionId: null,
     runId: null,
   } as const;
+  if (signal[0].severity === "critical") throw new Error("HIGH_RISK_FAILURE");
   const classification = classifyDetectedFailure(detection);
   const context = buildRemediationTaskContext(
     { id: signal[0].id, source: detection.source, identifier: detection.identifier, evidence: detection.evidence },
