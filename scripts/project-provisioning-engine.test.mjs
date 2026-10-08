@@ -65,10 +65,10 @@ test("generic engine provisions a project, records audit metadata, and is idempo
     assert.deepEqual(
       audits.map((row) => [row.action, row.actor_user_id, row.source, row.request_id, row.outcome]).sort((a, b) => a[0].localeCompare(b[0])),
       [
-        ["provision.card", "dev-user", "test", "test:generic", "success"],
+        ["provision.board", "dev-user", "test", "test:generic", "success"],
         ["provision.board", "dev-user", "test", "test:generic", "success"],
         ["provision.card", "dev-user", "test", "test:generic", "success"],
-        ["provision.board", "dev-user", "test", "test:generic", "success"],
+        ["provision.card", "dev-user", "test", "test:generic", "success"],
       ],
     );
   } finally {
