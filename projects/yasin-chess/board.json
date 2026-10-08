@@ -2,9 +2,9 @@
   "$schema": "../board.schema.json",
   "version": 1,
   "project": {
-    "key": "YASIN-CHESS",
+    "name": "Yasin Chess",
     "repository": "yusi20006-max/yasin-chess",
-    "name": "Yasin Chess"
+    "key": "YASIN-CHESS"
   },
   "ownerUserId": "dev-user",
   "columns": [
