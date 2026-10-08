@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { fileURLToPath } from "node:url";
 import { provisionAndVerify, openDatabase } from "./project-provisioning-engine.mjs";
 
-const MIGRATIONS_DIR = new URL("../migrations/", import.meta.url);
+const MIGRATIONS_DIR = fileURLToPath(new URL("../migrations/", import.meta.url));
 
 function configFor(repository, key, issueNumber = 1) {
   return {
