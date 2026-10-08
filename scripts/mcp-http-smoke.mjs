@@ -16,7 +16,9 @@ async function wait() {
     try {
       const response = await fetch("http://127.0.0.1:" + port + "/health");
       if (response.ok) return;
-    } catch {}
+    } catch {
+      // Retry until the server is ready.
+    }
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error("MCP HTTP server did not start");
