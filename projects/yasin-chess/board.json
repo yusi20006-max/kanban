@@ -4,106 +4,34 @@
   "project": {
     "key": "YASIN-CHESS",
     "name": "Yasin Chess",
-    "repository": "yusi20006-max/yasin-chess",
-    "provisioningIssueNumber": 159
+    "repository": "yusi20006-max/yasin-chess"
   },
   "ownerUserId": "dev-user",
   "columns": [
-    {
-      "position": 0,
-      "id": "todo",
-      "name": "Backlog"
-    },
-    {
-      "position": 1,
-      "id": "ready",
-      "name": "Ready"
-    },
-    {
-      "position": 2,
-      "id": "doing",
-      "name": "In Progress"
-    },
-    {
-      "position": 3,
-      "id": "testing",
-      "name": "Testing"
-    },
-    {
-      "position": 4,
-      "id": "pr",
-      "name": "PR"
-    },
-    {
-      "position": 5,
-      "id": "ci",
-      "name": "CI"
-    },
-    {
-      "position": 6,
-      "id": "review",
-      "name": "Review"
-    },
-    {
-      "position": 7,
-      "id": "verify",
-      "name": "Verify"
-    },
-    {
-      "position": 8,
-      "id": "done",
-      "name": "Done"
-    },
-    {
-      "position": 9,
-      "id": "blocked",
-      "name": "Blocked"
-    }
+    { "position": 0, "id": "todo", "name": "Backlog" },
+    { "position": 1, "id": "ready", "name": "Ready" },
+    { "position": 2, "id": "doing", "name": "In Progress" },
+    { "position": 3, "id": "testing", "name": "Testing" },
+    { "position": 4, "id": "pr", "name": "PR" },
+    { "position": 5, "id": "ci", "name": "CI" },
+    { "position": 6, "id": "review", "name": "Review" },
+    { "position": 7, "id": "verify", "name": "Verify" },
+    { "position": 8, "id": "done", "name": "Done" },
+    { "position": 9, "id": "blocked", "name": "Blocked" }
   ],
   "cards": [
-    {
-      "id": "issue-409",
-      "issueNumber": 409,
-      "columnId": "todo"
-    },
-    {
-      "id": "issue-410",
-      "issueNumber": 410,
-      "columnId": "todo"
-    },
-    {
-      "id": "issue-411",
-      "issueNumber": 411,
-      "columnId": "todo"
-    },
-    {
-      "id": "issue-412",
-      "issueNumber": 412,
-      "columnId": "todo"
-    },
-    {
-      "id": "issue-413",
-      "issueNumber": 413,
-      "columnId": "todo"
-    },
-    {
-      "id": "issue-414",
-      "issueNumber": 414,
-      "columnId": "todo"
-    },
+    { "id": "issue-409", "issueNumber": 409, "columnId": "todo" },
+    { "id": "issue-410", "issueNumber": 410, "columnId": "todo" },
+    { "id": "issue-411", "issueNumber": 411, "columnId": "todo" },
+    { "id": "issue-412", "issueNumber": 412, "columnId": "todo" },
+    { "id": "issue-413", "issueNumber": 413, "columnId": "todo" },
+    { "id": "issue-414", "issueNumber": 414, "columnId": "todo" },
     {
       "id": "issue-422",
       "issueNumber": 422,
       "prNumber": 423,
       "columnId": "todo",
-      "workflowPhases": [
-        "inspect",
-        "implement",
-        "test",
-        "pr",
-        "ci",
-        "verify"
-      ]
+      "workflowPhases": ["inspect", "implement", "test", "pr", "ci", "verify"]
     }
   ]
 }
