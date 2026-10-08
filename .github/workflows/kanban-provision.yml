@@ -8,6 +8,7 @@ on:
       - "projects/board.schema.json"
       - "scripts/project-provisioning-*.mjs"
       - "scripts/provision-project.mjs"
+      - "scripts/verify-provisioning-rollout.mjs"
       - "migrations/**"
       - ".github/workflows/kanban-provision.yml"
   workflow_dispatch:
@@ -15,7 +16,6 @@ on:
       project_config:
         description: "Project configuration path, relative to repository root"
         required: true
-        default: "projects/yasin-chess/board.json"
         type: string
       owner_user_id:
         description: "Optional Kanban owner override"
@@ -68,39 +68,37 @@ jobs:
           esac
           test -f "$config"
           echo "PROJECT_CONFIG=$config" >> "$GITHUB_ENV"
-      - name: Capture reference repository before provisioning
-        env:
-          REFERENCE_REPOSITORY: yusi20006-max/yasin-chess
+      - name: Resolve referenced repository
+        run: |
+          node --input-type=module -e '
+            import { readFile } from "node:fs/promises";
+            const config = JSON.parse(await readFile(process.env.PROJECT_CONFIG, "utf8"));
+            if (!config.project?.repository) throw new Error("Project configuration has no project.repository");
+            console.log("Configured repository:", config.project.repository);
+            console.log("REFERENCE_REPOSITORY=" + config.project.repository);
+          ' | tee repository-resolution.txt
+          grep '^REFERENCE_REPOSITORY=' repository-resolution.txt >> "$GITHUB_ENV"
+      - name: Capture referenced repository before provisioning
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "X-GitHub-Api-Version: 2026-03-10" \
-            "https://api.github.com/repos/$REFERENCE_REPOSITORY" > reference-repository-before.json
-      - name: Provision and verify twice
+          curl --fail --silent --show-error             -H "Accept: application/vnd.github+json"             -H "Authorization: Bearer $GITHUB_TOKEN"             -H "X-GitHub-Api-Version: 2026-03-10"             "https://api.github.com/repos/$REFERENCE_REPOSITORY" > reference-repository-before.json
+      - name: Provision and verify
         run: node scripts/provision-project.mjs "$PROJECT_CONFIG" | tee provision-result.json
       - name: Verify rollout acceptance
-        run: node scripts/verify-provisioning-rollout.mjs provision-result.json
-      - name: Verify reference repository was untouched
+        run: node scripts/verify-provisioning-rollout.mjs provision-result.json "$PROJECT_CONFIG"
+      - name: Verify referenced repository was untouched
         if: always()
-        env:
-          REFERENCE_REPOSITORY: yusi20006-max/yasin-chess
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "X-GitHub-Api-Version: 2026-03-10" \
-            "https://api.github.com/repos/$REFERENCE_REPOSITORY" > reference-repository-after.json
+          curl --fail --silent --show-error             -H "Accept: application/vnd.github+json"             -H "Authorization: Bearer $GITHUB_TOKEN"             -H "X-GitHub-Api-Version: 2026-03-10"             "https://api.github.com/repos/$REFERENCE_REPOSITORY" > reference-repository-after.json
           node - <<'NODE'
           const fs = require("node:fs");
           const before = JSON.parse(fs.readFileSync("reference-repository-before.json", "utf8"));
           const after = JSON.parse(fs.readFileSync("reference-repository-after.json", "utf8"));
           if (before.default_branch !== after.default_branch || before.pushed_at !== after.pushed_at) {
-            throw new Error("Reference repository changed during provisioning");
+            throw new Error("Referenced repository changed during provisioning");
           }
-          console.log("Reference repository unchanged: yusi20006-max/yasin-chess");
+          console.log("Referenced repository unchanged:", before.full_name);
           NODE
       - name: Publish result to job summary
         if: always()
