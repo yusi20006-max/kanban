@@ -1,12 +1,11 @@
 {
-  "$schema": "../board.schema.json",
   "version": 1,
-  "ownerUserId": "dev-user",
   "project": {
     "key": "YASIN-CHESS",
     "repository": "yusi20006-max/yasin-chess",
     "name": "Yasin Chess"
   },
+  "ownerUserId": "dev-user",
   "columns": [
     {
       "position": 0,
@@ -104,5 +103,6 @@
         "verify"
       ]
     }
-  ]
+  ],
+  "$schema": "../board.schema.json"
 }
