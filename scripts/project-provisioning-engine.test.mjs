@@ -4,7 +4,6 @@ import { fileURLToPath } from "node:url";
 import { readFile } from "node:fs/promises";
 import { provisionAndVerify, provisionProject, verifyProject, openDatabase } from "./project-provisioning-engine.mjs";
 
-const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const MIGRATIONS_DIR = fileURLToPath(new URL("../migrations/", import.meta.url));
 const YASIN_CHESS_CONFIG = fileURLToPath(new URL("../projects/yasin-chess/board.json", import.meta.url));
 
