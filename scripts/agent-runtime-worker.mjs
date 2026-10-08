@@ -3,6 +3,7 @@
 import { spawn } from "node:child_process";
 import process from "node:process";
 import { Pool } from "pg";
+import { buildDryRunResult, buildExecutionInput, validateRuntimeConfig } from "./agent-runtime-contract.mjs";
 
 const DATABASE_URL = process.env.DATABASE_URL?.trim();
 const USER_ID = process.env.KANBAN_AGENT_USER_ID?.trim() || "dev-user";
@@ -11,12 +12,12 @@ const AGENT_NAME = process.env.KANBAN_AGENT_NAME?.trim() || AGENT_ID;
 const MODE = process.env.AGENT_RUNTIME_MODE?.trim() || "dry-run";
 const POLL_MS = Number(process.env.AGENT_RUNTIME_POLL_MS || 2000);
 const LEASE_EXTENSION_SECONDS = Number(process.env.AGENT_RUNTIME_LEASE_EXTENSION_SECONDS || 300);
-const COMMAND = process.env.AGENT_RUNTIME_COMMAND?.trim();
+const COMMAND = process.env.AGENT_RUNTIME_COMMAND?.trim() || "";
 
 if (!DATABASE_URL) throw new Error("DATABASE_URL is required");
 if (!AGENT_ID) throw new Error("KANBAN_AGENT_ID is required");
 if (!Number.isFinite(POLL_MS) || POLL_MS < 250) throw new Error("AGENT_RUNTIME_POLL_MS must be >= 250");
-if (MODE === "command" && !COMMAND) throw new Error("AGENT_RUNTIME_COMMAND is required in command mode");
+validateRuntimeConfig({ mode: MODE, command: COMMAND });
 
 const pool = new Pool({ connectionString: DATABASE_URL });
 
