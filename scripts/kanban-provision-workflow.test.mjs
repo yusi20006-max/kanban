@@ -4,9 +4,9 @@ import { readFile } from "node:fs/promises";
 
 test("push provisioning workflow uses the GitHub event before SHA explicitly", async () => {
   const workflow = await readFile(".github/workflows/kanban-provision.yml", "utf8");
-  assert.match(workflow, /GITHUB_EVENT_PATH/);
-  assert.match(workflow, /event\.commits/);
-  assert.doesNotMatch(workflow, /git diff --name-only "\$GITHUB_EVENT_BEFORE" "\$GITHUB_SHA"/);
+  assert.match(workflow, /api\.github\.com\/repos\/\$GITHUB_REPOSITORY\/compare\/\$GITHUB_EVENT_BEFORE\.\.\.\$GITHUB_SHA/);
+  assert.match(workflow, /payload\.files/);
+  assert.doesNotMatch(workflow, /event\.commits/);
 });
 
 test("repository protection is guarded until repository resolution succeeded", async () => {
