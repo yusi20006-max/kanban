@@ -70,7 +70,7 @@ jobs:
                   if (!response.ok) throw new Error(`GitHub API ${response.status}: ${await response.text()}`);
                   const payload = await response.json();
                   for (const file of payload.files ?? []) {
-                    if (/^projects\/[^/]+\/board\\.json$/.test(file.filename)) paths.add(file.filename);
+                    if (/^projects\/[^/]+\/board\.json$/.test(file.filename)) paths.add(file.filename);
                   }
                   if (paths.size > 0) break;
                 }
