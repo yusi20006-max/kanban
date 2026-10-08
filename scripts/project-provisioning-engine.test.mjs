@@ -39,8 +39,8 @@ test("generic engine provisions a project and is idempotent", async () => {
     assert.equal(result.idempotency, "passed");
     assert.deepEqual(result.workflow, [{ issueNumber: 1, agentState: "idle", workflowPhase: "inspect" }]);
 
-    const boards = (await pg.query("select count(*)::int as count from kanban_boards")).rows[0].count;
-    const cards = (await pg.query("select count(*)::int as count from kanban_cards")).rows[0].count;
+    const boards = (await pg.query("select count(*)::int as count from kanban_boards where project_key=$1", [config.project.key])).rows[0].count;
+    const cards = (await pg.query("select count(*)::int as count from kanban_cards where github_repo=$1", [config.project.repository])).rows[0].count;
     assert.equal(Number(boards), 1);
     assert.equal(Number(cards), 1);
   } finally {
@@ -63,8 +63,8 @@ test("generic engine supports multiple independent projects in one runtime", asy
       source: "test",
       githubRequest: async (path) => ({ number: Number(path.split("/").pop()) }),
     });
-    assert.equal(Number((await pg.query("select count(*)::int as count from kanban_boards")).rows[0].count), 2);
-    assert.equal(Number((await pg.query("select count(*)::int as count from kanban_cards")).rows[0].count), 2);
+    assert.equal(Number((await pg.query("select count(*)::int as count from kanban_boards where project_key in ($1,$2)", [first.project.key, second.project.key])).rows[0].count), 2);
+    assert.equal(Number((await pg.query("select count(*)::int as count from kanban_cards where github_repo in ($1,$2)", [first.project.repository, second.project.repository])).rows[0].count), 2);
   } finally {
     await pg.close();
   }
