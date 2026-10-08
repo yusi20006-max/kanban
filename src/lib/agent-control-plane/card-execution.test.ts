@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildCardExecutionPlan, startCardExecutionInputSchema } from "./card-execution.ts";
+import { buildCardExecutionPlan, startCardExecutionInputSchema } from "./card-execution-contract.ts";
 
 test("card execution plan binds task to card and starts at inspect", () => {
   const plan = buildCardExecutionPlan("card-422", "agent-a");
