@@ -23,6 +23,8 @@ import { delegateTask, listDelegations, linkChildExecution } from "@/lib/agent-c
 import { listExecutionHistory, listTaskHistory } from "@/lib/agent-control-plane/history";
 import { ingestIssueToCard, cardToBranch, branchToPr, refreshDeliveryCi, ciFailureToTask, verifyMerge, releaseToDone } from "@/lib/github-delivery.server";
 import { registerAgent, unregisterAgent, listAgents, getAgent } from "@/lib/agent-control-plane/registry";
+import { startCardExecution } from "@/lib/agent-control-plane/card-execution";
+import { startCardExecutionInputSchema } from "@/lib/agent-control-plane/card-execution-contract";
 
 type RequestContext = { userId: string; requestId: string };
 
@@ -87,6 +89,10 @@ export const linkGithubFn = createServerFn({ method: "POST" }).middleware([authM
 export const refreshGithubFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
   .validator(z.object({ boardId: z.string().min(1).max(128), cardId: z.string().min(1).max(128) }))
   .handler(async ({ data, context }) => audited(context, "github.refresh", data, () => refreshGithubCard(context.userId, data)));
+
+export const startCardExecutionFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .validator(startCardExecutionInputSchema)
+  .handler(async ({ data, context }) => audited(context, "agent.card.start", data, () => startCardExecution(context.userId, data)));
 
 export const transitionAgentFn = createServerFn({ method: "POST" }).middleware([authMiddleware])
   .validator(transitionInputSchema)
