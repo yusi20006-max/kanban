@@ -89,3 +89,7 @@ MCP transports:
 - production HTTP sidecar: `npm run mcp:http`
 
 The HTTP sidecar requires `KANBAN_MCP_TOKEN` and `KANBAN_MCP_USER_ID`, validates the configured host/origin, and does not expose the token to client-side code.
+
+## Generic project provisioning
+
+See [`docs/generic-project-provisioning.md`](docs/generic-project-provisioning.md) for the configuration contract, rollout procedure, acceptance criteria, and Yasin Chess reference rollout.
