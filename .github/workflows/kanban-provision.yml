@@ -70,6 +70,20 @@ jobs:
           echo "PROJECT_CONFIG=$config" >> "$GITHUB_ENV"
       - name: Provision and verify twice
         run: node scripts/provision-project.mjs "$PROJECT_CONFIG" | tee provision-result.json
+      - name: Verify rollout acceptance
+        run: node scripts/verify-provisioning-rollout.mjs provision-result.json
+      - name: Capture reference repository SHA
+        if: always()
+        env:
+          REFERENCE_REPOSITORY: yusi20006-max/yasin-chess
+        run: |
+          set -euo pipefail
+          sha="$(curl --fail --silent --show-error \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "X-GitHub-Api-Version: 2026-03-10" \
+            "https://api.github.com/repos/$REFERENCE_REPOSITORY" | node -e 'let s=""; process.stdin.on("data",d=>s+=d); process.stdin.on("end",()=>console.log(JSON.parse(s).default_branch ? JSON.parse(s).default_branch : ""))')"
+          echo "Reference repository checked: $REFERENCE_REPOSITORY (default branch: $sha)"
       - name: Publish result to job summary
         if: always()
         run: |
