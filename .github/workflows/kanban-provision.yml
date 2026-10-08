@@ -34,6 +34,7 @@ jobs:
       PROJECT_CONFIG: ${{ inputs.project_config || '' }}
       KANBAN_PROVISION_OWNER: ${{ inputs.owner_user_id || '' }}
       GITHUB_TOKEN: ${{ github.token }}
+      GITHUB_EVENT_BEFORE: ${{ github.event.before || '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -87,7 +88,7 @@ jobs:
       - name: Verify rollout acceptance
         run: node scripts/verify-provisioning-rollout.mjs provision-result.json "$PROJECT_CONFIG"
       - name: Verify referenced repository was untouched
-        if: always()
+        if: ${{ always() && env.REFERENCE_REPOSITORY != '' && hashFiles('reference-repository-before.json') != '' }}
         run: |
           set -euo pipefail
           curl --fail --silent --show-error             -H "Accept: application/vnd.github+json"             -H "Authorization: Bearer $GITHUB_TOKEN"             -H "X-GitHub-Api-Version: 2026-03-10"             "https://api.github.com/repos/$REFERENCE_REPOSITORY" > reference-repository-after.json
