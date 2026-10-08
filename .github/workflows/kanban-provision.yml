@@ -51,8 +51,8 @@ jobs:
               exit 1
             fi
             mapfile -t configs < <(node --input-type=module -e '
-              import { readFile } from "node:fs";
-              const event = JSON.parse(readFile(process.env.GITHUB_EVENT_PATH, "utf8"));
+              import { readFileSync } from "node:fs";
+              const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
               const paths = new Set();
               for (const commit of event.commits ?? []) {
                 for (const path of [...(commit.added ?? []), ...(commit.modified ?? [])]) {
