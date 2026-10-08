@@ -28,7 +28,7 @@ export async function assignRemediationAgent(userId: string, input: unknown): Pr
     Array.isArray(agent.capabilities) && agent.capabilities.map(String).includes(capability),
   );
 
-  let selected = request.preferredAgentId
+  const selected = request.preferredAgentId
     ? capable.find((agent) => agent.id === request.preferredAgentId)
     : capable[0];
 
