@@ -50,7 +50,17 @@ jobs:
               echo "project_config is required for non-push runs." >&2
               exit 1
             fi
-            mapfile -t configs < <(git diff --name-only "$GITHUB_EVENT_BEFORE" "$GITHUB_SHA" -- "projects/*/board.json")
+            mapfile -t configs < <(node --input-type=module -e '
+              import { readFile } from "node:fs";
+              const event = JSON.parse(readFile(process.env.GITHUB_EVENT_PATH, "utf8"));
+              const paths = new Set();
+              for (const commit of event.commits ?? []) {
+                for (const path of [...(commit.added ?? []), ...(commit.modified ?? [])]) {
+                  if (/^projects\/[^/]+\/board\\.json$/.test(path)) paths.add(path);
+                }
+              }
+              for (const path of paths) console.log(path);
+            ')
             if [ "${#configs[@]}" -ne 1 ]; then
               echo "Push provisioning requires exactly one changed project config." >&2
               printf "%s\n" "${configs[@]}" >&2
