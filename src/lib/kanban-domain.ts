@@ -53,12 +53,12 @@ export async function listBoards(userId: string) {
 }
 
 type BoardColumn = { id:string; name:string; position:number };
-type BoardCard = { id:string; column_id:string; position:number; title:string; description:string; priority:"low"|"medium"|"high"|"critical"; due_date:string|null; created_at:string; updated_at:string };
+type BoardCard = { id:string; column_id:string; position:number; title:string; description:string; priority:"low"|"medium"|"high"|"critical"; due_date:string|null; created_at:string; updated_at:string; agent_state:AgentState; workflow_phase:string; github_repo:string|null; github_issue_number:number|null; github_pr_number:number|null; github_issue_state:string|null; github_pr_state:string|null; github_pr_merged:boolean|null; github_ci_state:string|null; github_synced_at:string|null };
 export async function listBoard(userId: string, boardId: string): Promise<{board:{id:string;name:string};columns:BoardColumn[];cards:BoardCard[]}> {
   const sql = await assertBoardOwner(userId, boardId);
   const boards = await sql.query<{ id:string; name:string }>("select id,name from kanban_boards where id=$1",[boardId]);
   const columns = await sql.query<BoardColumn>("select id,name,position from kanban_columns where board_id=$1 order by position,id",[boardId]);
-  const cards = await sql.query<BoardCard>("select id,column_id,position,title,description,priority,due_date,created_at,updated_at from kanban_cards where board_id=$1 and archived_at is null order by column_id,position,created_at",[boardId]);
+  const cards = await sql.query<BoardCard>("select id,column_id,position,title,description,priority,due_date,created_at,updated_at,agent_state,workflow_phase,github_repo,github_issue_number,github_pr_number,github_issue_state,github_pr_state,github_pr_merged,github_ci_state,github_synced_at from kanban_cards where board_id=$1 and archived_at is null order by column_id,position,created_at",[boardId]);
   return { board: boards[0], columns, cards };
 }
 
