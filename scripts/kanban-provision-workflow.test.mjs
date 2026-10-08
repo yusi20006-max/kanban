@@ -4,9 +4,12 @@ import { readFile } from "node:fs/promises";
 
 test("push provisioning workflow uses Compare first and commit-file fallback", async () => {
   const workflow = await readFile(".github/workflows/kanban-provision.yml", "utf8");
-  assert.match(workflow, /api\.github\.com\/repos\/\\$\{repo\}\/compare\/\\$\{before\}\.\.\.\\$\{sha\}/);
-  assert.match(workflow, /api\.github\.com\/repos\/\\$\{repo\}\/commits\/\\$\{sha\}/);
+  assert.match(
+    workflow,
+    /api\.github\.com\/repos\/\$\{repo\}\/compare\/\$\{before\}\.\.\.\$\{sha\}/,
+  );
   assert.match(workflow, /payload\.files/);
+  assert.match(workflow, /\/commits\/\$\{sha\}/);
   assert.doesNotMatch(workflow, /event\.commits/);
 });
 
