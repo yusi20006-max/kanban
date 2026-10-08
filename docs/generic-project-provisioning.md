@@ -4,15 +4,15 @@ Kanban project provisioning is configuration-driven. A future project is added b
 
 ## Operational flow
 
-project config -> generic provisioner -> same-runtime verification -> GitHub reference verification -> idempotency check -> rollout acceptance
+project config -> generic provisioner -> same-runtime verification -> GitHub reference verification -> idempotency check -> project-derived rollout acceptance
 
 The reusable implementation lives in:
 
 - `scripts/project-provisioning-contract.mjs` — validates the generic contract.
 - `scripts/project-provisioning-engine.mjs` — creates/updates the board, columns and cards and verifies the resulting state.
 - `scripts/provision-project.mjs` — GitHub Actions entrypoint.
-- `scripts/verify-provisioning-rollout.mjs` — final acceptance gate for the reference rollout.
-- `.github/workflows/kanban-provision.yml` — generic workflow.
+- `scripts/verify-provisioning-rollout.mjs` — final acceptance gate; derives expected counts and workflow metadata from the selected project configuration.
+- `.github/workflows/kanban-provision.yml` — generic workflow; derives the referenced repository from the selected project configuration.
 
 ## Adding a project
 
@@ -20,26 +20,15 @@ The reusable implementation lives in:
 2. Set `project.key`, `project.name`, `project.repository`, `ownerUserId`, columns and GitHub-backed cards.
 3. Validate the configuration through the existing contract tests.
 4. Push the configuration to `main`. The generic workflow resolves the single changed `projects/*/board.json`.
-5. Inspect the workflow summary. A successful rollout must report `status: passed`, configured column/card counts, GitHub references verified, `idempotency: passed`, and expected workflow metadata.
-6. For manual runs, use the workflow's `workflow_dispatch` input `project_config`.
+5. The workflow derives the referenced repository from `project.repository`, provisions the project, verifies the repository was not mutated, and runs rollout acceptance against the same configuration.
+6. Inspect the workflow summary. A successful rollout must report `status: passed`, configuration-derived column/card counts, GitHub references verified, `idempotency: passed`, and configuration-derived workflow metadata.
+7. For manual runs, supply the desired `projects/*/board.json` path through the workflow's `workflow_dispatch` input.
 
-No project-specific migration or provisioning script should be added for a new project.
+No project-specific migration, provisioning script, acceptance assertion, or reference repository should be added for a new project.
 
-## Reference rollout: Yasin Chess
+## Reference regression
 
-The reference configuration is `projects/yasin-chess/board.json`.
-
-The accepted result is:
-
-- 10 columns
-- 7 initial cards for Issues #409–#414 and #422
-- PR #423 linked to Issue #422
-- 7 GitHub references verified
-- idempotency passed
-- Issue #422 remains `agentState=idle`, `workflowPhase=inspect`
-- `yusi20006-max/yasin-chess` remains untouched by provisioning.
-
-The provisioner uses process-local in-memory PGlite. Provisioning and verification therefore run in the same Node process/runtime. The workflow proves the result before the process exits; the runtime database itself is not intended to be durable state.
+Yasin Chess remains a regression fixture in the automated test matrix through `projects/yasin-chess/board.json`. Its expected 10-column / 7-card / Issue #422 behavior belongs to that fixture and its tests, not to the generic workflow.
 
 ## Change boundaries
 
@@ -49,6 +38,6 @@ A project rollout must not mutate the referenced project repository. Provisionin
 
 ## CI and acceptance
 
-The repository CI must remain green. The provisioning workflow additionally runs the rollout acceptance script and compares the reference repository metadata before and after provisioning.
+The repository CI must remain green. The provisioning workflow additionally runs the project-independent rollout acceptance script and compares the selected project's referenced repository metadata before and after provisioning.
 
-This completes the generalized provisioning architecture introduced by Issues #167–#171.
+The generalized provisioning architecture introduced by Issues #167–#171 is now fully project-independent at the rollout acceptance layer.
