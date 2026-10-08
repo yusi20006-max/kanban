@@ -1,4 +1,5 @@
 import { useEffect, useId, useState, type FormEvent } from "react";
+import { Play, RefreshCw, Square, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -27,6 +28,7 @@ import {
   useBoardStore,
 } from "@/lib/board-store";
 import { cn } from "@/lib/utils";
+import { transitionAgentFn, refreshGithubFn } from "@/lib/kanban-api";
 
 export type CardDialogState =
   | { mode: "closed" }
@@ -88,6 +90,28 @@ export function CardDialog({ state, onClose }: CardDialogProps) {
       toast("کارت به‌روز شد");
     }
     onClose();
+  }
+
+  async function handleTransition(toState: "running" | "blocked" | "completed") {
+    if (state.mode !== "edit") return;
+    try {
+      await transitionAgentFn({ data: { boardId: "default", cardId: state.cardId, toState } });
+      await useBoardStore.getState().hydrate();
+      toast(toState === "running" ? "اجرای Agent شروع شد" : toState === "completed" ? "Agent تکمیل شد" : "Agent متوقف شد");
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "CONTROL_PLANE_ACTION_FAILED");
+    }
+  }
+
+  async function refreshGithub() {
+    if (state.mode !== "edit" || !editing?.githubRepo) return;
+    try {
+      await refreshGithubFn({ data: { boardId: "default", cardId: state.cardId } });
+      await useBoardStore.getState().hydrate();
+      toast("وضعیت GitHub به‌روز شد");
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "GITHUB_REFRESH_FAILED");
+    }
   }
 
   async function handleDelete() {
@@ -161,6 +185,34 @@ export function CardDialog({ state, onClose }: CardDialogProps) {
                 </div>
               </fieldset>
             </div>
+
+            {state.mode === "edit" && editing ? (
+              <section className="grid gap-3 rounded-lg border border-border bg-secondary/40 p-3" aria-label="کنترل اجرای Agent">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium">کنترل اجرای Agent</p>
+                    <p className="text-xs text-muted-foreground">وضعیت و فاز مستقل از ستون Kanban نگهداری می‌شوند.</p>
+                  </div>
+                  <span className="rounded-full bg-card px-2.5 py-1 text-xs font-medium">{editing.agentState}</span>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <span>فاز: {editing.workflowPhase}</span>
+                  {editing.githubIssueNumber ? <span>Issue #{editing.githubIssueNumber}</span> : null}
+                  {editing.githubPrNumber ? <span>PR #{editing.githubPrNumber}</span> : null}
+                  {editing.githubCiState ? <span>CI: {editing.githubCiState}</span> : null}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {editing.agentState === "idle" ? <Button type="button" size="sm" onClick={() => void handleTransition("running")}><Play className="size-4" />شروع</Button> : null}
+                  {editing.agentState === "running" ? <>
+                    <Button type="button" size="sm" variant="outline" onClick={() => void handleTransition("blocked")}><Square className="size-4" />توقف/مسدود</Button>
+                    <Button type="button" size="sm" variant="outline" onClick={() => void handleTransition("completed")}><XCircle className="size-4" />تکمیل</Button>
+                  </> : null}
+                  {editing.agentState === "blocked" || editing.agentState === "waiting-ci" || editing.agentState === "waiting-review" ? <Button type="button" size="sm" onClick={() => void handleTransition("running")}><Play className="size-4" />ادامه</Button> : null}
+                  {editing.agentState === "failed" || editing.agentState === "completed" ? <Button type="button" size="sm" onClick={() => void handleTransition("running")}><Play className="size-4" />اجرای مجدد</Button> : null}
+                  {editing.githubRepo ? <Button type="button" size="sm" variant="outline" onClick={() => void refreshGithub()}><RefreshCw className="size-4" />به‌روزرسانی GitHub</Button> : null}
+                </div>
+              </section>
+            ) : null}
 
             <DialogFooter>
               {state.mode === "edit" ? (
