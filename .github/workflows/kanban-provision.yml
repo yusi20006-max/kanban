@@ -1,6 +1,14 @@
 name: Kanban Provision
 
 on:
+  push:
+    branches: ["main"]
+    paths:
+      - "projects/yasin-chess/board.json"
+      - "projects/yasin-chess/board.schema.json"
+      - "scripts/provision-yasin-chess.mjs"
+      - "migrations/**"
+      - ".github/workflows/kanban-provision.yml"
   workflow_dispatch:
     inputs:
       owner_user_id:
