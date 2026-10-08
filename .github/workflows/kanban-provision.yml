@@ -6,11 +6,6 @@ on:
     paths:
       - "projects/**/board.json"
       - "projects/board.schema.json"
-      - "scripts/project-provisioning-*.mjs"
-      - "scripts/provision-project.mjs"
-      - "scripts/verify-provisioning-rollout.mjs"
-      - "migrations/**"
-      - ".github/workflows/kanban-provision.yml"
   workflow_dispatch:
     inputs:
       project_config:
