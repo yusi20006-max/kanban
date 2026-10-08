@@ -127,18 +127,18 @@ test("provisioning and verification use the same PGlite runtime", async () => {
 });
 
 test("a separate PGlite runtime does not observe process-local provisioning state", async () => {
+  const config = configFor("acme/process-local", "ACME-PROCESS-LOCAL", 31);
   const firstRuntime = await openDatabase(MIGRATIONS_DIR);
+  const boardId = await provisionProject(firstRuntime, config, { requestId: "test:process-local", source: "test" });
+  await firstRuntime.close();
+
   const secondRuntime = await openDatabase(MIGRATIONS_DIR);
   try {
-    const config = configFor("acme/process-local", "ACME-PROCESS-LOCAL", 31);
-    const boardId = await provisionProject(firstRuntime, config, { requestId: "test:process-local", source: "test" });
-
     await assert.rejects(
       verifyProject(secondRuntime, config, boardId),
       /Board read-back failed/,
     );
   } finally {
-    await firstRuntime.close();
     await secondRuntime.close();
   }
 });
