@@ -50,17 +50,22 @@ jobs:
               echo "project_config is required for non-push runs." >&2
               exit 1
             fi
-            mapfile -t configs < <(node --input-type=module -e '
-              import { readFileSync } from "node:fs";
-              const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
-              const paths = new Set();
-              for (const commit of event.commits ?? []) {
-                for (const path of [...(commit.added ?? []), ...(commit.modified ?? [])]) {
-                  if (/^projects\/[^/]+\/board\\.json$/.test(path)) paths.add(path);
+            mapfile -t configs < <(
+              curl --fail --silent --show-error \
+                -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer $GITHUB_TOKEN" \
+                -H "X-GitHub-Api-Version: 2026-03-10" \
+                "https://api.github.com/repos/$GITHUB_REPOSITORY/compare/$GITHUB_EVENT_BEFORE...$GITHUB_SHA" |
+              node --input-type=module -e '
+                import { readFileSync } from "node:fs";
+                const payload = JSON.parse(readFileSync(0, "utf8"));
+                const paths = new Set();
+                for (const file of payload.files ?? []) {
+                  if (/^projects\/[^/]+\/board\\.json$/.test(file.filename)) paths.add(file.filename);
                 }
-              }
-              for (const path of paths) console.log(path);
-            ')
+                for (const path of paths) console.log(path);
+              '
+            )
             if [ "${#configs[@]}" -ne 1 ]; then
               echo "Push provisioning requires exactly one changed project config." >&2
               printf "%s\n" "${configs[@]}" >&2
