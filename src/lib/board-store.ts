@@ -13,6 +13,16 @@ export type Card = {
   updatedAt?: number;
   priority: Priority;
   dueDate?: string | null;
+  agentState: "idle" | "running" | "blocked" | "waiting-ci" | "waiting-review" | "completed" | "failed";
+  workflowPhase: string;
+  githubRepo?: string | null;
+  githubIssueNumber?: number | null;
+  githubPrNumber?: number | null;
+  githubIssueState?: string | null;
+  githubPrState?: string | null;
+  githubPrMerged?: boolean | null;
+  githubCiState?: string | null;
+  githubSyncedAt?: string | null;
 };
 
 export type Columns = Record<ColumnId, string[]>;
@@ -50,6 +60,16 @@ function toCard(row: {
   due_date: string | null;
   created_at: string;
   updated_at: string;
+  agent_state: Card["agentState"];
+  workflow_phase: string;
+  github_repo: string | null;
+  github_issue_number: number | null;
+  github_pr_number: number | null;
+  github_issue_state: string | null;
+  github_pr_state: string | null;
+  github_pr_merged: boolean | null;
+  github_ci_state: string | null;
+  github_synced_at: string | null;
 }): Card {
   return {
     id: row.id,
@@ -59,6 +79,16 @@ function toCard(row: {
     dueDate: row.due_date,
     createdAt: Date.parse(row.created_at),
     updatedAt: Date.parse(row.updated_at),
+    agentState: row.agent_state,
+    workflowPhase: row.workflow_phase,
+    githubRepo: row.github_repo,
+    githubIssueNumber: row.github_issue_number,
+    githubPrNumber: row.github_pr_number,
+    githubIssueState: row.github_issue_state,
+    githubPrState: row.github_pr_state,
+    githubPrMerged: row.github_pr_merged,
+    githubCiState: row.github_ci_state,
+    githubSyncedAt: row.github_synced_at,
   };
 }
 
