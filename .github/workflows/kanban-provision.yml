@@ -50,9 +50,13 @@ jobs:
           set -euo pipefail
           config="$PROJECT_CONFIG"
           if [ -z "$config" ]; then
-            configs=(projects/*/board.json)
+            if [ "$GITHUB_EVENT_NAME" != "push" ]; then
+              echo "project_config is required for non-push runs." >&2
+              exit 1
+            fi
+            mapfile -t configs < <(git diff --name-only "$GITHUB_EVENT_BEFORE" "$GITHUB_SHA" -- "projects/*/board.json")
             if [ "${#configs[@]}" -ne 1 ]; then
-              echo "Push provisioning requires exactly one project config or an explicit project_config input." >&2
+              echo "Push provisioning requires exactly one changed project config." >&2
               printf "%s\n" "${configs[@]}" >&2
               exit 1
             fi
@@ -74,17 +78,6 @@ jobs:
           echo "Configuration: $PROJECT_CONFIG" >> "$GITHUB_STEP_SUMMARY"
           echo "Run: $GITHUB_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
           if [ -f provision-result.json ]; then cat provision-result.json >> "$GITHUB_STEP_SUMMARY"; else echo "Provisioning did not produce a result file." >> "$GITHUB_STEP_SUMMARY"; fi
-      - name: Comment verification result on project issue
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          issue_number="$(node -e "const fs=require('fs'); const c=JSON.parse(fs.readFileSync(process.env.PROJECT_CONFIG,'utf8')); const n=c.project.provisioningIssueNumber; if(n) process.stdout.write(String(n));")"
-          if [ -z "$issue_number" ]; then echo "No project.provisioningIssueNumber configured; skipping Issue comment."; exit 0; fi
-          { echo "### Kanban Provision verification"; echo ""; echo "Configuration: $PROJECT_CONFIG"; echo "Workflow: $GITHUB_WORKFLOW"; echo "Run: $GITHUB_RUN_ID"; echo ""; if [ -f provision-result.json ]; then cat provision-result.json; else echo "Provisioning failed before producing a result file."; fi; } > provision-issue-comment.md
-          gh issue comment "$issue_number" --repo "$GITHUB_REPOSITORY" --body-file provision-issue-comment.md
       - name: Quality checks
         run: |
           npm run typecheck
