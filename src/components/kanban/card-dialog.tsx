@@ -28,7 +28,7 @@ import {
   useBoardStore,
 } from "@/lib/board-store";
 import { cn } from "@/lib/utils";
-import { transitionAgentFn, refreshGithubFn } from "@/lib/kanban-api";
+import { startCardExecutionFn, transitionAgentFn, refreshGithubFn } from "@/lib/kanban-api";
 
 export type CardDialogState =
   | { mode: "closed" }
@@ -90,6 +90,17 @@ export function CardDialog({ state, onClose }: CardDialogProps) {
       toast("کارت به‌روز شد");
     }
     onClose();
+  }
+
+  async function startExecution() {
+    if (state.mode !== "edit") return;
+    try {
+      await startCardExecutionFn({ data: { boardId: "default", cardId: state.cardId, idempotencyKey: `card-start:${state.cardId}:${Date.now()}` } });
+      await useBoardStore.getState().hydrate();
+      toast("Task و Execution Agent شروع شد");
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "CONTROL_PLANE_START_FAILED");
+    }
   }
 
   async function handleTransition(toState: "running" | "blocked" | "completed") {
@@ -202,7 +213,7 @@ export function CardDialog({ state, onClose }: CardDialogProps) {
                   {editing.githubCiState ? <span>CI: {editing.githubCiState}</span> : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {editing.agentState === "idle" ? <Button type="button" size="sm" onClick={() => void handleTransition("running")}><Play className="size-4" />شروع</Button> : null}
+                  {editing.agentState === "idle" ? <Button type="button" size="sm" onClick={() => void startExecution()}><Play className="size-4" />شروع</Button> : null}
                   {editing.agentState === "running" ? <>
                     <Button type="button" size="sm" variant="outline" onClick={() => void handleTransition("blocked")}><Square className="size-4" />توقف/مسدود</Button>
                     <Button type="button" size="sm" variant="outline" onClick={() => void handleTransition("completed")}><XCircle className="size-4" />تکمیل</Button>
