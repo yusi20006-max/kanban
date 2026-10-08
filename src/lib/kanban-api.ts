@@ -23,7 +23,8 @@ import { delegateTask, listDelegations, linkChildExecution } from "@/lib/agent-c
 import { listExecutionHistory, listTaskHistory } from "@/lib/agent-control-plane/history";
 import { ingestIssueToCard, cardToBranch, branchToPr, refreshDeliveryCi, ciFailureToTask, verifyMerge, releaseToDone } from "@/lib/github-delivery.server";
 import { registerAgent, unregisterAgent, listAgents, getAgent } from "@/lib/agent-control-plane/registry";
-import { startCardExecution, startCardExecutionInputSchema } from "@/lib/agent-control-plane/card-execution";
+import { startCardExecution } from "@/lib/agent-control-plane/card-execution";
+import { startCardExecutionInputSchema } from "@/lib/agent-control-plane/card-execution-contract";
 
 type RequestContext = { userId: string; requestId: string };
 
