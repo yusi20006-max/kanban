@@ -194,9 +194,11 @@ test("Yasin Chess remains a generic provisioning regression fixture", async () =
       source: "test",
       githubRequest: async (path) => {
         requestedPaths.push(path);
-        const match = path.match(/\\/(issues|pulls)\\/(\\d+)$/);
-        assert.ok(match, "unexpected GitHub path: " + path);
-        return { number: Number(match[2]), ...(match[1] === "pulls" ? { base: { repo: { full_name: config.project.repository } } } : {}) };
+        const parts = path.split("/");
+        const kind = parts.at(-2);
+        const number = Number(parts.at(-1));
+        assert.ok((kind === "issues" || kind === "pulls") && Number.isInteger(number), "unexpected GitHub path: " + path);
+        return { number, ...(kind === "pulls" ? { base: { repo: { full_name: config.project.repository } } } : {}) };
       },
     });
 
