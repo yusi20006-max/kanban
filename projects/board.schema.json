@@ -4,73 +4,41 @@
   "title": "Kanban Project Provisioning Configuration",
   "description": "Project-independent configuration used to provision a Kanban board from a GitHub repository.",
   "type": "object",
-  "required": [
-    "version",
-    "project",
-    "ownerUserId",
-    "columns",
-    "cards"
-  ],
+  "required": ["version", "project", "ownerUserId", "columns", "cards"],
   "properties": {
-    "version": {
-      "const": 1
-    },
+    "version": { "const": 1 },
     "project": {
       "type": "object",
-      "required": [
-        "key",
-        "name",
-        "repository"
-      ],
+      "required": ["key", "name", "repository"],
       "properties": {
         "key": {
           "type": "string",
           "minLength": 1,
           "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
         },
-        "name": {
-          "type": "string",
-          "minLength": 1
-        },
+        "name": { "type": "string", "minLength": 1 },
         "repository": {
           "type": "string",
           "pattern": "^[^/\\s]+/[^/\\s]+$"
-        },
-        "provisioningIssueNumber": {
-          "type": "integer",
-          "minimum": 1
         }
       },
       "additionalProperties": false
     },
-    "ownerUserId": {
-      "type": "string",
-      "minLength": 1
-    },
+    "ownerUserId": { "type": "string", "minLength": 1 },
     "columns": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": [
-          "position",
-          "id",
-          "name"
-        ],
+        "required": ["position", "id", "name"],
         "properties": {
-          "position": {
-            "type": "integer",
-            "minimum": 0
-          },
+          "position": { "type": "integer", "minimum": 0 },
           "id": {
             "type": "string",
             "minLength": 1,
             "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
           },
-          "name": {
-            "type": "string",
-            "minLength": 1
-          }
+          "name": { "type": "string", "minLength": 1 }
         },
         "additionalProperties": false
       }
@@ -79,25 +47,15 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": [
-          "id",
-          "issueNumber",
-          "columnId"
-        ],
+        "required": ["id", "issueNumber", "columnId"],
         "properties": {
           "id": {
             "type": "string",
             "minLength": 1,
             "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
           },
-          "issueNumber": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "prNumber": {
-            "type": "integer",
-            "minimum": 1
-          },
+          "issueNumber": { "type": "integer", "minimum": 1 },
+          "prNumber": { "type": "integer", "minimum": 1 },
           "columnId": {
             "type": "string",
             "minLength": 1,
@@ -105,10 +63,7 @@
           },
           "workflowPhases": {
             "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1
-            }
+            "items": { "type": "string", "minLength": 1 }
           }
         },
         "additionalProperties": false
