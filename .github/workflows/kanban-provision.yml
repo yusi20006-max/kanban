@@ -51,17 +51,28 @@ jobs:
               exit 1
             fi
             mapfile -t configs < <(
-              curl --fail --silent --show-error \
-                -H "Accept: application/vnd.github+json" \
-                -H "Authorization: Bearer $GITHUB_TOKEN" \
-                -H "X-GitHub-Api-Version: 2026-03-10" \
-                "https://api.github.com/repos/$GITHUB_REPOSITORY/compare/$GITHUB_EVENT_BEFORE...$GITHUB_SHA" |
               node --input-type=module -e '
-                import { readFileSync } from "node:fs";
-                const payload = JSON.parse(readFileSync(0, "utf8"));
+                const headers = {
+                  Accept: "application/vnd.github+json",
+                  Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+                  "X-GitHub-Api-Version": "2026-03-10"
+                };
+                const repo = process.env.GITHUB_REPOSITORY;
+                const before = process.env.GITHUB_EVENT_BEFORE;
+                const sha = process.env.GITHUB_SHA;
+                const urls = [
+                  `https://api.github.com/repos/${repo}/compare/${before}...${sha}`,
+                  `https://api.github.com/repos/${repo}/commits/${sha}`
+                ];
                 const paths = new Set();
-                for (const file of payload.files ?? []) {
-                  if (/^projects\/[^/]+\/board\\.json$/.test(file.filename)) paths.add(file.filename);
+                for (const url of urls) {
+                  const response = await fetch(url, { headers });
+                  if (!response.ok) throw new Error(`GitHub API ${response.status}: ${await response.text()}`);
+                  const payload = await response.json();
+                  for (const file of payload.files ?? []) {
+                    if (/^projects\/[^/]+\/board\\.json$/.test(file.filename)) paths.add(file.filename);
+                  }
+                  if (paths.size > 0) break;
                 }
                 for (const path of paths) console.log(path);
               '
