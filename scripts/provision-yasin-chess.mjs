@@ -93,7 +93,7 @@ async function verifyGitHubReferences(config) {
 
 async function openDatabase() {
   const pg = new PGlite();
-  await pg.waitReady();
+  await pg.waitReady;
   await pg.exec("create table if not exists _migrations (name text primary key, applied_at timestamptz not null default now())");
 
   const entries = await readdir(MIGRATIONS_DIR);
