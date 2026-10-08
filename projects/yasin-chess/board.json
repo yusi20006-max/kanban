@@ -3,8 +3,8 @@
   "version": 1,
   "project": {
     "key": "YASIN-CHESS",
-    "name": "Yasin Chess",
-    "repository": "yusi20006-max/yasin-chess"
+    "repository": "yusi20006-max/yasin-chess",
+    "name": "Yasin Chess"
   },
   "ownerUserId": "dev-user",
   "columns": [
