@@ -47,7 +47,7 @@ function requireUnique(values, path) {
 
 export function validateProjectProvisioningConfig(config) {
   requireObject(config, "config");
-  rejectUnknownKeys(config, new Set(["version", "project", "ownerUserId", "columns", "cards"]), "config");
+  rejectUnknownKeys(config, new Set(["$schema", "version", "project", "ownerUserId", "columns", "cards"]), "config");
 
   if (config.version !== 1) fail("config.version", "must be 1");
 
