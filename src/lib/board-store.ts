@@ -60,6 +60,16 @@ function toCard(row: {
   due_date: string | null;
   created_at: string;
   updated_at: string;
+  agent_state: Card["agentState"];
+  workflow_phase: string;
+  github_repo: string | null;
+  github_issue_number: number | null;
+  github_pr_number: number | null;
+  github_issue_state: string | null;
+  github_pr_state: string | null;
+  github_pr_merged: boolean | null;
+  github_ci_state: string | null;
+  github_synced_at: string | null;
 }): Card {
   return {
     id: row.id,
