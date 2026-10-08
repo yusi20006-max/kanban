@@ -214,3 +214,38 @@ test("Yasin Chess remains a generic provisioning regression fixture", async () =
     await pg.close();
   }
 });
+
+test("rollout acceptance derives expectations from each project configuration", async () => {
+  const { verifyRollout } = await import("./verify-provisioning-rollout.mjs");
+  for (const config of [
+    configFor("acme/acceptance-one", "ACME-ACCEPTANCE-ONE", 40),
+    configFor("acme/acceptance-two", "ACME-ACCEPTANCE-TWO", 50),
+  ]) {
+    const result = {
+      status: "passed",
+      persistence: "process-local-in-memory-pglite",
+      boardId: "board-" + config.project.key,
+      board: { name: config.project.name },
+      columnCount: config.columns.length,
+      cardCount: config.cards.length,
+      githubReferencesVerified: config.cards.length,
+      idempotency: "passed",
+      workflow: config.cards.filter((card) => card.workflowPhases?.length).map((card) => ({
+        issueNumber: card.issueNumber,
+        agentState: "idle",
+        workflowPhase: card.workflowPhases[0],
+      })),
+    };
+    const accepted = verifyRollout(result, config);
+    assert.equal(accepted.repository, config.project.repository);
+    assert.equal(accepted.columns, config.columns.length);
+    assert.equal(accepted.cards, config.cards.length);
+  }
+});
+
+test("generic rollout acceptance source contains no Yasin-Chess-specific dependency", async () => {
+  const workflow = await readFile(fileURLToPath(new URL("../.github/workflows/kanban-provision.yml", import.meta.url)), "utf8");
+  const verifier = await readFile(fileURLToPath(new URL("./verify-provisioning-rollout.mjs", import.meta.url)), "utf8");
+  assert.doesNotMatch(workflow, /yasin-chess|#422|#423|Issue #422/i);
+  assert.doesNotMatch(verifier, /yasin-chess|#422|#423|Issue #422/i);
+});
