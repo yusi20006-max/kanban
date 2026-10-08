@@ -1,4 +1,4 @@
-const REPOSITORY_PATTERN = /^[^/\\s]+\\/[^/\\s]+$/;
+const REPOSITORY_PATTERN = /^[^/\s]+\/[^/\s]+$/;
 const KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 
 export class ProjectProvisioningConfigError extends Error {
