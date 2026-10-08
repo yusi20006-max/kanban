@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/yusi20006-max/kanban/projects/yasin-chess/board.schema.json",
   "type": "object",
   "required": ["version", "project", "ownerUserId", "columns", "cards"],
   "properties": {
