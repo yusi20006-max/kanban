@@ -12,8 +12,10 @@
 - Verification evidence: GitHub commit API for `main`; CI run [#661](https://github.com/yusi20006-max/kanban/actions/runs/37783400273) completed successfully for that SHA.
 - Local working-tree status: **UNKNOWN**. Remote GitHub inspection cannot establish whether any developer/agent has uncommitted or untracked local changes. Run `git status --short --branch` before touching files.
 - Snapshot branch for feature: `feat/207-agent-recovery-checkpoint` (merged)
-- Post-merge metadata refresh branch: `docs/207-post-merge-checkpoint`
-- PR for this change: [#208](https://github.com/yusi20006-max/kanban/pull/208), open at the latest reconciliation.
+- Post-merge metadata refresh branch: `docs/207-post-merge-checkpoint` (PR #209 merged)
+- Final merge-state reconciliation branch: `docs/207-finalize-merge-state`
+- Feature PR [#208](https://github.com/yusi20006-max/kanban/pull/208): merged at `9fd455c05064e671a035908e364cb6d0fec1558b`.
+- Metadata refresh PR [#209](https://github.com/yusi20006-max/kanban/pull/209): merged at `979d4bcfaa9327efb40758a83fd075ce727b01a6`.
 - Latest verified checkpoint branch SHA before this refresh: `52158c7e28d162f9594198c38840bc81b165c26c`.
 - Feature PR CI: run [#671](https://github.com/yusi20006-max/kanban/actions/runs/37952745567), completed successfully on PR head `a89c300d0e9687dc757f847f72df01d36279697a`.
 - Post-merge main CI: run [#672](https://github.com/yusi20006-max/kanban/actions/runs/37952930843), completed successfully for `9fd455c05064e671a035908e364cb6d0fec1558b`.
@@ -67,3 +69,5 @@
 - 2026-10-09 — PR #208 merged at `9fd455c05064e671a035908e364cb6d0fec1558b`; feature PR CI #671 passed on its head. Main CI #672 subsequently completed successfully for `9fd455c05064e671a035908e364cb6d0fec1558b`.
 
 - 2026-10-09 — Post-merge main CI #672 completed successfully for `9fd455c05064e671a035908e364cb6d0fec1558b`.
+
+- 2026-10-09 — PR #209 merged at `979d4bcfaa9327efb40758a83fd075ce727b01a6`; CI for PR head passed. The current main push CI must be read live at session start, as it may still be running while this checkpoint is being refreshed.
