@@ -8,7 +8,7 @@
 - Default branch: `main`
 - Baseline `main` SHA before this feature: `5cbcbe9e87c5b05fe03157d6da9914c87f013d8a`
 - Post-merge `main` SHA observed: `9fd455c05064e671a035908e364cb6d0fec1558b` (PR #208 squash merge)
-- Post-merge CI run #672 for `9fd455c05064e671a035908e364cb6d0fec1558b`: pending at this checkpoint refresh; reconcile live result before relying on it.
+- Post-merge CI run [#672](https://github.com/yusi20006-max/kanban/actions/runs/37952930843) for `9fd455c05064e671a035908e364cb6d0fec1558b`: completed successfully.
 - Verification evidence: GitHub commit API for `main`; CI run [#661](https://github.com/yusi20006-max/kanban/actions/runs/37783400273) completed successfully for that SHA.
 - Local working-tree status: **UNKNOWN**. Remote GitHub inspection cannot establish whether any developer/agent has uncommitted or untracked local changes. Run `git status --short --branch` before touching files.
 - Snapshot branch for feature: `feat/207-agent-recovery-checkpoint` (merged)
@@ -16,7 +16,7 @@
 - PR for this change: [#208](https://github.com/yusi20006-max/kanban/pull/208), open at the latest reconciliation.
 - Latest verified checkpoint branch SHA before this refresh: `52158c7e28d162f9594198c38840bc81b165c26c`.
 - Feature PR CI: run [#671](https://github.com/yusi20006-max/kanban/actions/runs/37952745567), completed successfully on PR head `a89c300d0e9687dc757f847f72df01d36279697a`.
-- Post-merge main CI: run [#672](https://github.com/yusi20006-max/kanban/actions/runs/37952930843), pending at checkpoint refresh; re-check its final result.
+- Post-merge main CI: run [#672](https://github.com/yusi20006-max/kanban/actions/runs/37952930843), completed successfully for `9fd455c05064e671a035908e364cb6d0fec1558b`.
 
 ## Active work
 - Active implementation Issue: none for checkpoint feature; [#207 — Add durable, tool-independent Agent Recovery Checkpoint](https://github.com/yusi20006-max/kanban/issues/207) is closed via PR #208.
@@ -41,7 +41,7 @@
 ## Tests, lint, and CI evidence
 - Last verified main CI: run [#661](https://github.com/yusi20006-max/kanban/actions/runs/37783400273), success, SHA `5cbcbe9e87c5b05fe03157d6da9914c87f013d8a`.
 - Feature PR tests/lint/build/smoke: CI #671 passed on `a89c300d0e9687dc757f847f72df01d36279697a`.
-- Post-merge CI #672 must be verified against main SHA `9fd455c05064e671a035908e364cb6d0fec1558b`.
+- Post-merge CI #672 is verified green on main SHA `9fd455c05064e671a035908e364cb6d0fec1558b`.
 - Do not carry forward a green CI claim to a different SHA without checking that SHA's checks.
 
 ## Blockers and stop reason
@@ -53,7 +53,7 @@
 ## Exact next action
 1. Read `docs/automation/AGENT_RECOVERY.md` and execute its start-of-session reconciliation in the actual checkout.
 2. Run `git status --short --branch`; preserve every unknown modification/untracked file. Do not reset, clean, checkout over, or overwrite them.
-3. Verify post-merge CI #672 for main SHA `9fd455c05064e671a035908e364cb6d0fec1558b`.
+3. Post-merge CI #672 is already verified green for main SHA `9fd455c05064e671a035908e364cb6d0fec1558b`; now verify the latest checkpoint PR checks.
 4. Verify the post-merge checkpoint refresh PR and its checks; do not repeat feature implementation.
 5. Resume Issue #206 only after confirming the live repo/Issue/PR/check state.
 
@@ -64,4 +64,6 @@
 
 - 2026-10-09 — Checkpoint evidence refresh commit `52158c7e28d162f9594198c38840bc81b165c26c`; CI #668 passed on that SHA. This file is deliberately reconciled against live GitHub at every session start because any subsequent checkpoint update creates a new SHA.
 
-- 2026-10-09 — PR #208 merged at `9fd455c05064e671a035908e364cb6d0fec1558b`; feature PR CI #671 passed on its head. Main CI #672 was still pending when this refresh was prepared.
+- 2026-10-09 — PR #208 merged at `9fd455c05064e671a035908e364cb6d0fec1558b`; feature PR CI #671 passed on its head. Main CI #672 subsequently completed successfully for `9fd455c05064e671a035908e364cb6d0fec1558b`.
+
+- 2026-10-09 — Post-merge main CI #672 completed successfully for `9fd455c05064e671a035908e364cb6d0fec1558b`.
