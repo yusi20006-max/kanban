@@ -11,8 +11,8 @@
 - Local working-tree status: **UNKNOWN**. Remote GitHub inspection cannot establish whether any developer/agent has uncommitted or untracked local changes. Run `git status --short --branch` before touching files.
 - Snapshot branch for this change: `feat/207-agent-recovery-checkpoint`
 - PR for this change: [#208](https://github.com/yusi20006-max/kanban/pull/208), open at the latest reconciliation.
-- Latest checkpoint branch SHA: `8fb0064f0122e1c06da1cac87c2636c52f583e4e`.
-- Latest branch CI: run [#667](https://github.com/yusi20006-max/kanban/actions/runs/37952378781), completed successfully for that exact SHA; run #666 also succeeded for the same SHA.
+- Latest verified checkpoint branch SHA before this refresh: `52158c7e28d162f9594198c38840bc81b165c26c`.
+- Latest branch CI at this refresh: run [#668](https://github.com/yusi20006-max/kanban/actions/runs/37952589296), completed successfully for that exact SHA. The current checkpoint commit itself must always be rechecked against live GitHub.
 
 ## Active work
 - Active implementation Issue: [#207 — Add durable, tool-independent Agent Recovery Checkpoint](https://github.com/yusi20006-max/kanban/issues/207)
@@ -36,7 +36,7 @@
 
 ## Tests, lint, and CI evidence
 - Last verified main CI: run [#661](https://github.com/yusi20006-max/kanban/actions/runs/37783400273), success, SHA `5cbcbe9e87c5b05fe03157d6da9914c87f013d8a`.
-- Tests/lint/build/smoke on the checkpoint branch: GitHub Actions CI #667 passed on `8fb0064f0122e1c06da1cac87c2636c52f583e4e`. Re-check the latest PR SHA before merge.
+- Tests/lint/build/smoke on the checkpoint branch: GitHub Actions CI #668 passed on `52158c7e28d162f9594198c38840bc81b165c26c`. Re-check the latest PR SHA before merge.
 - Do not carry forward a green CI claim to a different SHA without checking that SHA's checks.
 
 ## Blockers and stop reason
@@ -57,3 +57,5 @@
 - 2026-10-09 — Seeded from remotely verified `main` SHA `5cbcbe9e87c5b05fe03157d6da9914c87f013d8a`; CI #661 verified green. Local working tree explicitly left unknown.
 
 - 2026-10-09 — Read-only remote recovery simulation: Issue #207 open, PR #208 open, CI #667 passed on head `8fb0064f0122e1c06da1cac87c2636c52f583e4e`; local working-tree inspection remains a required step for an agent with checkout access.
+
+- 2026-10-09 — Checkpoint evidence refresh commit `52158c7e28d162f9594198c38840bc81b165c26c`; CI #668 passed on that SHA. This file is deliberately reconciled against live GitHub at every session start because any subsequent checkpoint update creates a new SHA.
