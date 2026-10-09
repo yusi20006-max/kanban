@@ -349,3 +349,8 @@ auth/db: OFF by default — sign-in, @/lib/db or migrations ONLY on an accounts 
 never:   build an app for a greeting/number/question; invent imagine_* calls;
          ask the user to run commands; delete or abandon /workspace/startup.sh
 ```
+
+
+## Durable cross-agent recovery (Issue #207)
+
+Before starting work, follow `docs/automation/AGENT_RECOVERY.md` and reconcile `docs/automation/AGENT_STATE.md` with live GitHub and the actual checkout. GitHub state files are navigation aids, not a substitute for checking the current branch, HEAD, and working tree. Preserve unknown changes. Never claim tests/CI passed without observed evidence. Update the checkpoint after meaningful milestones and before stopping. After every merge, verify the resulting `main` SHA and CI for that exact SHA. Never put secrets in checkpoints, comments, logs, or artifacts.
