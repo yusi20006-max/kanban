@@ -60,7 +60,7 @@ async function waitForApp() {
   for (let attempt = 0; attempt < 90; attempt += 1) {
     if (app.exitCode !== null) throw new Error(`APP_EXITED_EARLY:${app.exitCode}`);
     try {
-      const response = await fetch(baseUrl);
+      const response = await fetch(baseUrl, { signal: AbortSignal.timeout(1500) });
       if (response.ok) return;
     } catch {
       // The Vite server is still starting.
@@ -71,6 +71,7 @@ async function waitForApp() {
 }
 
 try {
+  console.log("[browser-e2e] applying auth schema and seeding isolated fixture");
   const authSchema = await readFile("migrations/auth/0001_auth.sql", "utf8");
   await pool.query(authSchema);
 
@@ -108,6 +109,7 @@ try {
     [agentId, userId, "browser-e2e-agent"],
   );
 
+  console.log("[browser-e2e] starting app server");
   app = spawn("npm", ["run", "dev"], {
     env: {
       ...process.env,
@@ -122,6 +124,7 @@ try {
   app.stdout.on("data", (chunk) => { appOutput += chunk.toString(); });
   app.stderr.on("data", (chunk) => { appOutput += chunk.toString(); });
   await waitForApp();
+  console.log("[browser-e2e] app responded; starting worker and browser");
 
   worker = spawn(process.execPath, ["--import", "tsx", "scripts/agent-runtime-worker.mjs"], {
     env: {
@@ -152,7 +155,8 @@ try {
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
   page.on("pageerror", (error) => { report.pageError = error.message; });
-  await page.goto(baseUrl, { waitUntil: "networkidle" });
+  await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
+  console.log("[browser-e2e] page loaded; waiting for fixture card");
 
   const fixtureCard = page.getByRole("heading", { name: cardTitle, exact: true });
   await fixtureCard.waitFor({ state: "visible" });
@@ -160,8 +164,10 @@ try {
 
   const dialog = page.getByRole("dialog");
   await dialog.waitFor({ state: "visible" });
+  console.log("[browser-e2e] clicking actual Start button");
   await dialog.getByRole("button", { name: "شروع", exact: true }).click();
   await page.getByText("Task و Execution Agent شروع شد", { exact: true }).waitFor({ state: "visible" });
+  console.log("[browser-e2e] Start toast observed; checking worker lifecycle");
 
   let observed;
   for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -208,6 +214,7 @@ try {
   await mkdir("artifacts", { recursive: true });
   await page.screenshot({ path: "artifacts/agent-runtime-browser-e2e.png", fullPage: true });
   report.outcome = "passed";
+  console.log("[browser-e2e] all lifecycle assertions passed");
   report.checks = {
     appStarted: true,
     browserAuthenticatedWithSyntheticSession: true,
