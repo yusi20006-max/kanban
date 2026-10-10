@@ -46,14 +46,25 @@ async function writeReport() {
   await writeFile(reportPath, JSON.stringify(report, null, 2) + "\n", "utf8");
 }
 
-async function stop(child) {
+async function stop(child, processGroup = false) {
   if (!child || child.exitCode !== null) return;
-  child.kill("SIGTERM");
+  const signal = (name) => {
+    try {
+      if (processGroup && process.platform !== "win32" && child.pid) {
+        process.kill(-child.pid, name);
+      } else {
+        child.kill(name);
+      }
+    } catch (error) {
+      if (!(error instanceof Error) || !("code" in error) || error.code !== "ESRCH") throw error;
+    }
+  };
+  signal("SIGTERM");
   await Promise.race([
     new Promise((resolve) => child.once("exit", resolve)),
     wait(3000),
   ]);
-  if (child.exitCode === null) child.kill("SIGKILL");
+  if (child.exitCode === null) signal("SIGKILL");
 }
 
 async function waitForApp() {
@@ -113,6 +124,7 @@ try {
 
   console.log("[browser-e2e] starting app server");
   app = spawn("npm", ["run", "dev"], {
+    detached: process.platform !== "win32",
     env: {
       ...process.env,
       DATABASE_URL: databaseUrl,
@@ -243,7 +255,7 @@ try {
   process.exitCode = 1;
 } finally {
   await stop(worker);
-  await stop(app);
+  await stop(app, true);
   if (browser) await browser.close();
   await writeReport();
   await pool.end();
