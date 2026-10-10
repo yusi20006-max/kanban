@@ -57,17 +57,19 @@ async function stop(child) {
 }
 
 async function waitForApp() {
-  for (let attempt = 0; attempt < 90; attempt += 1) {
+  let lastProbe = "NO_RESPONSE";
+  for (let attempt = 0; attempt < 30; attempt += 1) {
     if (app.exitCode !== null) throw new Error(`APP_EXITED_EARLY:${app.exitCode}`);
     try {
-      const response = await fetch(baseUrl, { signal: AbortSignal.timeout(1500) });
+      const response = await fetch(baseUrl, { signal: AbortSignal.timeout(1000) });
+      lastProbe = `HTTP_${response.status}`;
       if (response.ok) return;
-    } catch {
-      // The Vite server is still starting.
+    } catch (error) {
+      lastProbe = error instanceof Error ? error.name : "FETCH_ERROR";
     }
-    await wait(1000);
+    await wait(500);
   }
-  throw new Error("APP_START_TIMEOUT");
+  throw new Error(`APP_START_TIMEOUT:${lastProbe}`);
 }
 
 try {
