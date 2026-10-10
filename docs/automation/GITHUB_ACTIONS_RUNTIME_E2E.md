@@ -2,21 +2,21 @@
 
 ## What this proves
 
-The `Agent Runtime E2E (GitHub-hosted)` workflow starts a disposable PostgreSQL service inside a GitHub-hosted Actions job, applies the repository migrations, seeds an isolated Kanban card/task/lease/execution fixture, starts the generic worker in `dry-run` mode, and verifies that:
+The `Agent Runtime E2E (GitHub-hosted)` workflow starts a disposable PostgreSQL service inside a GitHub-hosted Actions job, applies the repository migrations, seeds an isolated board/card/ready agent, invokes the production `startCardExecution` orchestration to create the task/lease/execution and transition the card to `Agent=running / Workflow=inspect`, then starts the generic worker in `dry-run` mode and verifies that:
 
 - the running execution becomes `succeeded`;
 - the task becomes `completed`;
 - the lease becomes `released`;
 - the agent returns to `ready`;
 - the dry-run result reports `mutation: none` and phases `inspect → execute → verify`;
-- the fixture card's workflow/agent state remains unchanged;
+- the card remains at the state created by Start (`Agent=running / Workflow=inspect`) after worker completion;
 - a redacted JSON evidence file is uploaded as an Actions artifact for 14 days.
 
-The workflow uses no external database, no deploy platform, no repository write token, and no credentials beyond the ephemeral Actions service. Its test repository reference points to the Kanban test Issue #211; the worker does not call GitHub APIs in dry-run mode.
+The workflow uses no external database, no deploy platform, no repository write token, and no credentials beyond the ephemeral Actions service. Its test repository reference points to the Kanban test Issue #211. The test invokes the real server-side Start orchestration function but does not click the browser UI; the worker does not call GitHub APIs in dry-run mode.
 
 ## What this does not prove
 
-This is an **ephemeral integration E2E**, not a persistent deployment. The PostgreSQL service and worker disappear when the Actions job ends. Artifacts preserve evidence, not database state. GitHub Pages can host static output but cannot run this server-side TanStack application/API or keep the PostgreSQL-backed worker alive.
+This is an **ephemeral integration E2E**, not a persistent deployment. It verifies the server-side Card Start orchestration plus worker lifecycle, but not the deployed browser click path. The PostgreSQL service and worker disappear when the Actions job ends. Artifacts preserve evidence, not database state. GitHub Pages can host static output but cannot run this server-side TanStack application/API or keep the PostgreSQL-backed worker alive.
 
 Therefore it does not satisfy these #206/#181 criteria:
 
