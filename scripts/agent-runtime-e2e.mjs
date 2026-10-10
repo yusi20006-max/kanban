@@ -190,5 +190,6 @@ try {
     if (worker.exitCode === null) worker.kill("SIGKILL");
   }
   await writeReport();
+  console.log("AGENT_RUNTIME_E2E_REPORT=" + JSON.stringify(report));
   await pool.end();
 }
