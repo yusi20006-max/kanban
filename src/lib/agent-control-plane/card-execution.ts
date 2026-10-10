@@ -24,7 +24,7 @@ export async function startCardExecution(userId: string, input: unknown) {
     github_repo: string | null;
     github_issue_number: number | null;
   }>(
-    "select id,title,agent_state,workflow_phase,github_repo,github_issue_number from kanban_cards c join kanban_boards b on b.id=c.board_id where c.id=$1 and c.board_id=$2 and b.owner_user_id=$3 and c.archived_at is null",
+    "select c.id,c.title,c.agent_state,c.workflow_phase,c.github_repo,c.github_issue_number from kanban_cards c join kanban_boards b on b.id=c.board_id where c.id=$1 and c.board_id=$2 and b.owner_user_id=$3 and c.archived_at is null",
     [data.cardId, data.boardId, userId],
   );
   if (!card[0]) throw new Error("CARD_NOT_FOUND");
