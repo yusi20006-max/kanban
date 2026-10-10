@@ -39,7 +39,7 @@ jobs:
       - name: Build and apply migrations to disposable PostgreSQL
         run: npm run build
       - name: Run safe Agent Runtime lifecycle E2E
-        run: node scripts/agent-runtime-e2e.mjs
+        run: node --import tsx scripts/agent-runtime-e2e.mjs
       - name: Upload redacted execution evidence
         if: always()
         uses: actions/upload-artifact@v4
