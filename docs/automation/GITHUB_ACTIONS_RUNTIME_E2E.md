@@ -32,3 +32,10 @@ Those require an explicitly authorized persistent host and database. Do not infe
 Run the workflow manually from GitHub Actions, or inspect its pull-request check. Download the `agent-runtime-e2e-evidence` artifact. It contains statuses and synthetic fixture IDs only; it does not include database credentials or environment values.
 
 The main CI remains authoritative for typecheck, unit tests, build, and smoke checks. A green ephemeral E2E is additional evidence for the worker's database lifecycle, not a replacement for the deployed UI E2E.
+
+
+## Browser-level Card Start E2E (Issue #220)
+
+The same workflow additionally installs Chromium and runs `scripts/agent-runtime-browser-e2e.mjs`. That test seeds a synthetic session and fixture in the disposable PostgreSQL, starts the actual Vite/TanStack app, opens the UI with Playwright, clicks the fixture card and the real **شروع** button, then observes the production server-function audit event and the worker's database lifecycle. It uploads a JSON report and screenshot. The session token is generated per run and is never written to logs or the artifact.
+
+A passing run proves the UI action reaches the production Card Start path in an ephemeral, authenticated browser test. It still does not prove a stable deployed URL, durable database across jobs, or execution that continues after the Actions runner exits.
