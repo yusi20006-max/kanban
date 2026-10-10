@@ -40,6 +40,10 @@ jobs:
         run: npm run build
       - name: Run safe Agent Runtime lifecycle E2E
         run: node --import tsx scripts/agent-runtime-e2e.mjs
+      - name: Install Chromium for browser E2E
+        run: npx playwright install --with-deps chromium
+      - name: Run real browser Card Start E2E
+        run: node scripts/agent-runtime-browser-e2e.mjs
       - name: Upload redacted execution evidence
         if: always()
         uses: actions/upload-artifact@v4
