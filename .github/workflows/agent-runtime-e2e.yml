@@ -3,14 +3,6 @@ name: Agent Runtime E2E (GitHub-hosted)
 on:
   workflow_dispatch:
   pull_request:
-    paths:
-      - ".github/workflows/agent-runtime-e2e.yml"
-      - "scripts/agent-runtime-e2e.mjs"
-      - "scripts/agent-runtime-worker.mjs"
-      - "scripts/agent-runtime-contract.mjs"
-      - "migrations/**"
-      - "package.json"
-      - "package-lock.json"
 
 permissions:
   contents: read
