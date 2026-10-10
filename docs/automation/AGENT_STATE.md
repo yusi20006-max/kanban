@@ -6,7 +6,7 @@
 - Snapshot date: 2026-10-10.
 - Repository: `yusi20006-max/kanban`; default branch: `main`.
 - Main SHA after PR #221 merge: `741beb301eba264e67290ea249b5c6d8807d8064`.
-- Main CI run [#704](https://github.com/yusi20006-max/kanban/actions/runs/38055965117) was still running on that exact SHA when this checkpoint PR was prepared; re-query the live result before relying on it.
+- Main CI run [#704](https://github.com/yusi20006-max/kanban/actions/runs/38055965117) completed successfully on that exact SHA `741beb301eba264e67290ea249b5c6d8807d8064`.
 - Previous baseline CI [#697](https://github.com/yusi20006-max/kanban/actions/runs/38050748321) passed on `93d6a11f71f8c0d99c564e37b26173ed73333f47`.
 - The checkpoint content is committed before its own future merge; always re-query live `main` after merge.
 - Local working-tree status: **UNKNOWN** to remote GitHub tools. Any agent with a checkout must run `git status --short --branch`, `git rev-parse HEAD`, inspect remotes, and review unknown changes before editing.
@@ -48,7 +48,7 @@
 
 ## Tests, lint, and CI evidence
 - PR #221 quality CI and browser E2E both passed on exact PR head `b653e09f7a691c153912b9a1d0d789fde6f6f578` (runs #38055840201 and #38055840209).
-- Main CI #704 is running on merge SHA `741beb301eba264e67290ea249b5c6d8807d8064` at checkpoint authoring time; re-check its final conclusion.
+- Main CI #704 passed on merge SHA `741beb301eba264e67290ea249b5c6d8807d8064`.
 - PR #216 quality CI passed on `e6f29f77dc732370bf39dc0b434c10d2f7180819`.
 - Agent Runtime E2E #8 passed on the same PR head and uploaded a sanitized evidence artifact.
 - Earlier main checks: #688 passed on `a4364790b1a961a13f7599f4146cd02987684422`; #690 passed on `6740099530b20566d02a778b26c925935270df32`.
@@ -74,4 +74,4 @@
 
 - 2026-10-10 — Issue #220 / PR #221 completed the browser-level E2E. First run failed because the test fabricated an invalid `__Host-` cookie and configured a worker poll interval below its minimum. Fix uses Better Auth's supported bearer-session path and a valid 250 ms poll interval.
 - 2026-10-10 — Browser E2E run [#38055840209](https://github.com/yusi20006-max/kanban/actions/runs/38055840209) and quality CI run [#38055840201](https://github.com/yusi20006-max/kanban/actions/runs/38055840201) passed on exact head `b653e09f7a691c153912b9a1d0d789fde6f6f578`; artifact #11671440573 contains successful JSON evidence and screenshot.
-- 2026-10-10 — PR #221 merged to main as `741beb301eba264e67290ea249b5c6d8807d8064`; post-merge CI #704 was pending when this checkpoint update was authored.
+- 2026-10-10 — PR #221 merged to main as `741beb301eba264e67290ea249b5c6d8807d8064`; post-merge CI #704 subsequently passed on that exact SHA.
