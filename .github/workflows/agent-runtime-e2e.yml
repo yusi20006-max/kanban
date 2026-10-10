@@ -1,0 +1,58 @@
+name: Agent Runtime E2E (GitHub-hosted)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/agent-runtime-e2e.yml"
+      - "scripts/agent-runtime-e2e.mjs"
+      - "scripts/agent-runtime-worker.mjs"
+      - "scripts/agent-runtime-contract.mjs"
+      - "migrations/**"
+      - "package.json"
+      - "package-lock.json"
+
+permissions:
+  contents: read
+
+jobs:
+  ephemeral-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kanban_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kanban_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/kanban_e2e
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm install
+      - name: Build and apply migrations to disposable PostgreSQL
+        run: npm run build
+      - name: Run safe Agent Runtime lifecycle E2E
+        run: node scripts/agent-runtime-e2e.mjs
+      - name: Upload redacted execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-runtime-e2e-evidence
+          path: artifacts/agent-runtime-e2e.json
+          if-no-files-found: warn
+          retention-days: 14
