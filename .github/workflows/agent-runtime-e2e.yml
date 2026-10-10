@@ -49,6 +49,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: agent-runtime-e2e-evidence
-          path: artifacts/agent-runtime-e2e.json
+          path: |
+            artifacts/agent-runtime-e2e.json
+            artifacts/agent-runtime-browser-e2e.json
+            artifacts/agent-runtime-browser-e2e.png
           if-no-files-found: warn
           retention-days: 14
