@@ -137,7 +137,7 @@ export async function transitionAgent(userId:string,data:z.infer<typeof transiti
   const phase=data.phase??current.workflow_phase;
   const value={cardId:data.cardId,fromState:current.agent_state,toState:data.toState,phase};
   return sql.transaction(async (tx) => {
-    const updated=await tx.query("update kanban_cards set agent_state=$1,workflow_phase=$2,updated_at=now() where id=$3 and board_id=$4 and agent_state=$5",[data.toState,phase,data.cardId,data.boardId,current.agent_state]);
+    const updated=await tx.query("update kanban_cards set agent_state=$1,workflow_phase=$2,updated_at=now() where id=$3 and board_id=$4 and agent_state=$5 returning id",[data.toState,phase,data.cardId,data.boardId,current.agent_state]);
     if(updated.length===0) throw new Error("CONCURRENT_AGENT_STATE_CHANGE");
     await tx.query("insert into kanban_workflow_events(id,card_id,phase,agent_state,attempt,result) values($1,$2,$3,$4,(select coalesce(max(attempt),0)+1 from kanban_workflow_events where card_id=$2 and phase=$3),$5)",[crypto.randomUUID(),data.cardId,phase,data.toState,data.result]);
     if(data.idempotencyKey) await tx.query("insert into kanban_idempotency(actor_user_id,operation_key,action,result) values($1,$2,$3,$4::jsonb)",[userId,data.idempotencyKey,"workflow.transition",JSON.stringify(value)]);

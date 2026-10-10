@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import process from "node:process";
 import { Pool } from "pg";
+import { startCardExecution } from "../src/lib/agent-control-plane/card-execution.ts";
 
 const databaseUrl = process.env.DATABASE_URL?.trim();
 if (!databaseUrl) throw new Error("DATABASE_URL_REQUIRED");
@@ -16,9 +17,9 @@ const suffix = randomUUID();
 const boardId = `e2e-board-${suffix}`;
 const cardId = `e2e-card-${suffix}`;
 const agentId = `e2e-agent-${suffix}`;
-const taskId = `e2e-task-${suffix}`;
-const leaseId = `e2e-lease-${suffix}`;
-const executionId = `e2e-execution-${suffix}`;
+let taskId;
+let leaseId;
+let executionId;
 const reportPath = "artifacts/agent-runtime-e2e.json";
 const pool = new Pool({ connectionString: databaseUrl });
 let worker;
@@ -59,23 +60,45 @@ try {
      values($1,$2,$3,'["kanban-execution"]'::jsonb,'{"runtime":"e2e"}'::jsonb,'ready',now())`,
     [agentId, userId, "ephemeral-e2e-agent"],
   );
-  await pool.query(
-    `insert into kanban_agent_tasks(id,owner_user_id,board_id,card_id,title,status)
-     values($1,$2,$3,$4,$5,'running')`,
-    [taskId, userId, boardId, cardId, "Safe dry-run execution lifecycle"],
-  );
-  await pool.query(
-    `insert into kanban_agent_leases(id,owner_user_id,task_id,agent_id,status,expires_at)
-     values($1,$2,$3,$4,'active',now() + interval '2 minutes')`,
-    [leaseId, userId, taskId, agentId],
-  );
-  await pool.query(
-    `insert into kanban_agent_executions(id,owner_user_id,task_id,agent_id,attempt,status,started_at)
-     values($1,$2,$3,$4,1,'running',now())`,
-    [executionId, userId, taskId, agentId],
-  );
+  const started = await startCardExecution(userId, {
+    boardId,
+    cardId,
+    agentId,
+    leaseTtlSeconds: 120,
+    timeoutSeconds: 120,
+    idempotencyKey: `e2e-start-${suffix}`,
+  });
+  taskId = started.taskId;
+  leaseId = started.leaseId;
+  executionId = started.executionId;
+  assert.equal(started.taskStatus, "running");
+  assert.equal(started.agentState, "running");
+  assert.equal(started.workflowPhase, "inspect");
+  assert.equal(started.github.repo, "yusi20006-max/kanban");
+  assert.equal(started.github.issueNumber, 211);
 
-  worker = spawn(process.execPath, ["scripts/agent-runtime-worker.mjs"], {
+  const beforeWorker = await pool.query(
+    `select e.status as execution_status,t.status as task_status,
+            l.status as lease_status,a.status as agent_status,
+            c.agent_state,c.workflow_phase
+       from kanban_agent_executions e
+       join kanban_agent_tasks t on t.id=e.task_id
+       join kanban_agent_leases l on l.task_id=t.id and l.agent_id=e.agent_id
+       join kanban_agents a on a.id=e.agent_id
+       join kanban_cards c on c.id=t.card_id
+      where e.id=$1`,
+    [executionId],
+  );
+  assert.deepEqual(beforeWorker.rows[0], {
+    execution_status: "running",
+    task_status: "running",
+    lease_status: "active",
+    agent_status: "busy",
+    agent_state: "running",
+    workflow_phase: "inspect",
+  }, "production Card Start orchestration must create the live task/lease/execution boundary");
+
+  worker = spawn(process.execPath, ["--import", "tsx", "scripts/agent-runtime-worker.mjs"], {
     env: {
       ...process.env,
       DATABASE_URL: databaseUrl,
@@ -123,15 +146,17 @@ try {
     [cardId],
   );
   assert.deepEqual(card.rows[0], {
-    agent_state: "idle",
+    agent_state: "running",
     workflow_phase: "inspect",
     github_repo: "yusi20006-max/kanban",
     github_issue_number: 211,
-  }, "worker dry-run must not mutate card workflow state or touch the referenced repository");
+  }, "worker dry-run must preserve the state created by Card Start and must not call GitHub APIs");
 
   report.outcome = "passed";
   report.checks = {
     migrationsPresent: true,
+    startCardExecutionInvoked: true,
+    startCreatedTaskLeaseExecution: true,
     workerClaimedExecution: true,
     executionStatus: observed.execution_status,
     taskStatus: observed.task_status,
@@ -144,6 +169,13 @@ try {
     externalGitHubWrites: false,
   };
   report.fixture = { boardId, cardId, agentId, taskId, leaseId, executionId, githubReference: "yusi20006-max/kanban#211" };
+  report.startResult = {
+    taskId: started.taskId,
+    leaseId: started.leaseId,
+    executionId: started.executionId,
+    agentState: started.agentState,
+    workflowPhase: started.workflowPhase,
+  };
 } catch (error) {
   report.error = error instanceof Error ? error.message : String(error);
   report.workerLogTail = workerOutput.split("\n").slice(-30).join("\n");
@@ -158,5 +190,6 @@ try {
     if (worker.exitCode === null) worker.kill("SIGKILL");
   }
   await writeReport();
+  console.log("AGENT_RUNTIME_E2E_REPORT=" + JSON.stringify(report));
   await pool.end();
 }
