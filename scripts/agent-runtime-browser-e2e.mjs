@@ -148,7 +148,7 @@ try {
       KANBAN_AGENT_USER_ID: userId,
       KANBAN_AGENT_NAME: "browser-e2e-agent",
       AGENT_RUNTIME_MODE: "dry-run",
-      AGENT_RUNTIME_POLL_MS: "200",
+      AGENT_RUNTIME_POLL_MS: "250",
       AGENT_RUNTIME_LEASE_EXTENSION_SECONDS: "120",
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -157,15 +157,12 @@ try {
   worker.stderr.on("data", (chunk) => { workerOutput += chunk.toString(); });
 
   browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext();
-  await context.addCookies([{
-    name: "__Host-grok-auth.session_token",
-    value: token,
-    url: baseUrl,
-    secure: true,
-    httpOnly: true,
-    sameSite: "Lax",
-  }]);
+  // Better Auth's bearer plugin accepts the opaque session token directly.
+  // This avoids fabricating a signed __Host cookie (which browsers correctly
+  // reject on local HTTP) while still exercising the real auth middleware.
+  const context = await browser.newContext({
+    extraHTTPHeaders: { Authorization: `Bearer ${token}` },
+  });
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
   page.on("pageerror", (error) => { report.pageError = error.message; });
