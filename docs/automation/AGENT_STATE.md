@@ -5,75 +5,59 @@
 ## Verified snapshot
 - Snapshot date: 2026-10-10.
 - Repository: `yusi20006-max/kanban`; default branch: `main`.
-- Latest verified `main` SHA at session start: `464b5b8c085cd72e64a8e48bed5ed5176ff82167`.
-- Main CI run [#677](https://github.com/yusi20006-max/kanban/actions/runs/37953617077) passed on that exact SHA.
+- Latest observed `main` SHA: `a4364790b1a961a13f7599f4146cd02987684422` (PR #212 squash merge).
+- Main CI run [#688](https://github.com/yusi20006-max/kanban/actions/runs/38020038904) was in progress at checkpoint creation; re-check before relying on it.
 - Local working-tree status: **UNKNOWN** to remote GitHub tools. Any agent with a checkout must run `git status --short --branch`, `git rev-parse HEAD`, and inspect unknown changes before editing.
 - Recovery instructions: `docs/automation/AGENT_RECOVERY.md`; `AGENTS.md` references this contract.
+- Baseline main SHA before the checkpoint feature: `5cbcbe9e87c5b05fe03157d6da9914c87f013d8a` (CI #661 passed).
 
 ## Last verified completed stage
-- Recovery checkpoint implementation PR #208 merged at `9fd455c05064e671a035908e364cb6d0fec1558b`; main CI #672 passed on that exact SHA.
-- Baseline main SHA before the checkpoint feature: `5cbcbe9e87c5b05fe03157d6da9914c87f013d8a`; CI #661 passed on that SHA.
+- GitHub-hosted ephemeral Agent Runtime E2E merged through PR [#212](https://github.com/yusi20006-max/kanban/pull/212), merge SHA `a4364790b1a961a13f7599f4146cd02987684422`.
+- PR head tested: `9b047f81934c0893335259ec5748c49200b34867`.
+- CI quality run [#685](https://github.com/yusi20006-max/kanban/actions/runs/38019942306) passed on that exact PR head.
+- Dedicated ephemeral E2E run [#2](https://github.com/yusi20006-max/kanban/actions/runs/38019942328) passed on that exact PR head; artifact `agent-runtime-e2e-evidence` is retained until 2026-10-24.
+- Verified: execution succeeded, task completed, lease released, agent ready, dry-run reported `mutation: none`, fixture card state unchanged. This is worker lifecycle evidence against a disposable PostgreSQL service, not UI or persistent deployment proof.
 
 ## Completed
 - Generic Agent Runtime worker merged via PR [#205](https://github.com/yusi20006-max/kanban/pull/205); supports PostgreSQL-backed leases, heartbeats, safe dry-run and explicit command mode.
-- Durable recovery checkpoint merged via PR [#208](https://github.com/yusi20006-max/kanban/pull/208), merge SHA `9fd455c05064e671a035908e364cb6d0fec1558b`.
-- Post-merge metadata PR [#209](https://github.com/yusi20006-max/kanban/pull/209), merge SHA `979d4bcfaa9327efb40758a83fd075ce727b01a6`.
-- Final state reconciliation PR [#210](https://github.com/yusi20006-max/kanban/pull/210), merge SHA `464b5b8c085cd72e64a8e48bed5ed5176ff82167`.
-- CI #672 passed on #208 merge SHA; CI #675 passed on #209 merge SHA; CI #677 passed on current main SHA.
-- Issues #207 and #210 are closed. Their changes must not be reimplemented.
+- Durable recovery checkpoint merged via PR [#208](https://github.com/yusi20006-max/kanban/pull/208), merge SHA `9fd455c05064e671a035908e364cb6d0fec1558b`; main CI #672 passed on that SHA.
+- Post-merge metadata PR [#209](https://github.com/yusi20006-max/kanban/pull/209), merge SHA `979d4bcfaa9327efb40758a83fd075ce727b01a6`; CI #675 passed on that SHA.
+- Final state reconciliation PR [#210](https://github.com/yusi20006-max/kanban/pull/210), merge SHA `464b5b8c085cd72e64a8e48bed5ed5176ff82167`; main CI #677 passed on that SHA.
+- GitHub-only ephemeral E2E PR #212 merged; Issue #211 is closed.
+- Issues #207, #210, and #211 are closed. Do not reimplement their completed work.
 
 ## Branch / PR / commits
-- Checkpoint feature PR #208: merged at `9fd455c05064e671a035908e364cb6d0fec1558b`.
-- Metadata refresh PR #209: merged at `979d4bcfaa9327efb40758a83fd075ce727b01a6`.
-- Reconciliation PR #210: merged at `464b5b8c085cd72e64a8e48bed5ed5176ff82167`.
-- Current implementation branch: `feat/211-github-actions-agent-runtime-e2e`; PR #212 is open.
+- PR #208: merged at `9fd455c05064e671a035908e364cb6d0fec1558b`.
+- PR #209: merged at `979d4bcfaa9327efb40758a83fd075ce727b01a6`.
+- PR #210: merged at `464b5b8c085cd72e64a8e48bed5ed5176ff82167`.
+- PR #212: merged at `a4364790b1a961a13f7599f4146cd02987684422`.
+- Current documentation-only branch: `docs/213-reconcile-post-e2e-checkpoint`; PR for Issue #213 not yet created at checkpoint refresh time.
 
 ## Active work
-- Issue [#211 — GitHub-only ephemeral Agent Runtime E2E](https://github.com/yusi20006-max/kanban/issues/211).
-- Working branch: `feat/211-github-actions-agent-runtime-e2e`.
-- Current PR: not yet created at snapshot time; create one after reviewing the branch diff and checking workflow/script consistency.
-- Parent blockers: [#206 — shared persistent environment](https://github.com/yusi20006-max/kanban/issues/206) and [#181 — real Kanban Control Plane E2E](https://github.com/yusi20006-max/kanban/issues/181), both remain open.
-- Current feature adds a GitHub Actions ephemeral PostgreSQL + generic worker dry-run test and a redacted evidence artifact. It is **not** a persistent deployment and does not prove the deployed browser Start button.
-
-## Files changed for Issue #211
-- `.github/workflows/agent-runtime-e2e.yml` — PR/manual workflow using a disposable PostgreSQL service container.
-- `scripts/agent-runtime-e2e.mjs` — seeds an isolated synthetic card/task/lease/execution, runs the generic worker in dry-run mode, and verifies terminal statuses and no card mutation.
-- `docs/automation/GITHUB_ACTIONS_RUNTIME_E2E.md` — states proven boundaries and limitations.
+- Issue [#213 — Reconcile recovery checkpoint after GitHub-only runtime E2E merge](https://github.com/yusi20006-max/kanban/issues/213).
+- Parent blockers still open: [#206 — shared persistent environment](https://github.com/yusi20006-max/kanban/issues/206) and [#181 — real Kanban Control Plane E2E](https://github.com/yusi20006-max/kanban/issues/181).
+- #206/#181 still need a stable deployed Kanban URL, a persistent database shared by app and worker across runner termination, and an actual browser/UI Start execution. GitHub Pages is static hosting; Actions service containers and processes are ephemeral. No Railway or paid infrastructure was created.
 
 ## Tests, lint, and CI evidence
-- Main baseline typecheck/test/build/smoke: CI #677 passed on `464b5b8c085cd72e64a8e48bed5ed5176ff82167`.
-- Issue #211 E2E has not yet run on this branch at snapshot time; wait for the PR workflow and inspect its exact head SHA and uploaded artifact.
+- Main CI #677 passed on `464b5b8c085cd72e64a8e48bed5ed5176ff82167`.
+- PR #212 CI #685 passed on `9b047f81934c0893335259ec5748c49200b34867`.
+- Agent Runtime E2E run #2 passed on `9b047f81934c0893335259ec5748c49200b34867`; sanitized artifact uploaded.
+- Main CI #688 on merge SHA `a4364790b1a961a13f7599f4146cd02987684422` was pending at checkpoint creation; verify its final result.
 - Never carry a green result from a different SHA.
-- Evidence artifact should contain only synthetic fixture IDs/statuses and no credentials or secret values.
 
 ## Blockers and stop reason
-- #206/#181 still require persistent hosting and real deployed browser/UI E2E; no paid resource was created.
+- No persistent host or durable shared database is configured.
+- No public deployed Kanban URL or browser/UI E2E is claimed.
+- The ephemeral E2E uses a synthetic card referencing Kanban Issue #211 and performs no external GitHub writes; it does not mutate `yusi20006-max/yasin-chess`.
 - Local working-tree status cannot be verified remotely; the actual checkout must be inspected before edits.
 
 ## Exact next action
-1. Fix the checkpoint contract test's required headings without losing the current live main SHA/CI evidence.
-2. Re-run PR #212 CI and the dedicated ephemeral runtime E2E; inspect the latest exact head SHA.
-3. Merge only when both required workflows are green.
-4. Verify merge SHA and CI on the resulting main SHA, then update this file and #206/#181.
+1. Verify CI #688 for merge SHA `a4364790b1a961a13f7599f4146cd02987684422`.
+2. Merge this documentation reconciliation PR only after CI is green on its exact head.
+3. After merge, verify the new `main` SHA and CI for that exact SHA, then refresh this checkpoint if needed.
+4. Continue #206 only within the no-paid-resource constraint; do not equate Actions artifacts with a persistent runtime.
 
 ## Recovery history
-- 2026-10-10 — The first PR CI run found that the checkpoint contract test requires stable section headings. This is a real regression from the metadata refresh and must be corrected before merge.
-- 2026-10-10 — Main SHA `464b5b8c085cd72e64a8e48bed5ed5176ff82167` verified with CI #677 green.
-
-## What GitHub-only can and cannot provide
-- GitHub Actions can run this integration E2E on an ephemeral runner and preserve a short-lived artifact.
-- GitHub Pages is static hosting; it cannot host the server-side TanStack API or a continuously running PostgreSQL worker.
-- Actions service containers and databases disappear when the job ends. Artifacts are evidence storage, not a persistent database.
-- No Railway/paid cloud resource has been created. No stable public Kanban URL or persistent shared database is currently proven.
-- Do not claim phone-independent autonomous execution until a genuinely persistent, authorized runtime exists.
-
-## Exact next actions
-1. Inspect the three Issue #211 files and run the dedicated workflow via PR.
-2. Fix all failures on the Issue #211 branch; do not merge until all required checks are green on the exact PR head.
-3. Review the JSON evidence artifact; ensure execution succeeded, task completed, lease released, agent ready, dry-run mutation is none, and fixture card state remained unchanged.
-4. Merge only after CI passes; then verify PR merged SHA, current `main` SHA, and CI on that exact `main` SHA.
-5. Update this file after merge with exact SHAs and observed run IDs.
-6. Record the limited proof in #206 and #181. Keep both open because this ephemeral run does not satisfy persistent deployment or browser/UI acceptance.
-
-## Recovery drill record
-- 2026-10-10 — Remote-only recovery review re-read live main, PRs/issues, and CI. It exposed stale post-merge claims in the prior checkpoint. Those claims have been replaced with the observed main SHA and CI #677. The remote-only drill does not inspect local working-tree state; a real checkout recovery must still run the required Git status/HEAD checks.
+- 2026-10-10 — Remote-only recovery review found stale post-merge fields in the prior checkpoint; replaced them with current GitHub facts.
+- 2026-10-10 — PR #212 merged at `a4364790b1a961a13f7599f4146cd02987684422`; quality and ephemeral worker E2E passed on its exact head `9b047f81934c0893335259ec5748c49200b34867`.
+- 2026-10-10 — Remote-only drill verified current GitHub SHA/PR/CI and identified remaining blocker accurately. The local-checkout leg remains unverified because remote tools cannot inspect an actual developer filesystem.
