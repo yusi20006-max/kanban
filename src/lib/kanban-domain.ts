@@ -54,11 +54,44 @@ export async function listBoards(userId: string) {
 
 type BoardColumn = { id:string; name:string; position:number };
 type BoardCard = { id:string; column_id:string; position:number; title:string; description:string; priority:"low"|"medium"|"high"|"critical"; due_date:string|null; created_at:string; updated_at:string; agent_state:AgentState; workflow_phase:string; github_repo:string|null; github_issue_number:number|null; github_pr_number:number|null; github_issue_state:string|null; github_pr_state:string|null; github_pr_merged:boolean|null; github_ci_state:string|null; github_synced_at:string|null };
+async function ensureDefaultBoardForUser(userId: string): Promise<{ id: string; name: string }> {
+  const sql = await getSql();
+  const existing = await sql.query<{ id: string; name: string }>(
+    "select id,name from kanban_boards where owner_user_id=$1 and archived_at is null order by case when id='default' then 0 else 1 end,created_at,id limit 1",
+    [userId],
+  );
+  if (existing[0]) return existing[0];
+
+  const id = crypto.randomUUID();
+  await sql.transaction(async (tx) => {
+    await tx.query(
+      "insert into kanban_boards(id,name,description,owner_user_id) values($1,$2,$3,$4)",
+      [id, "جریان", "", userId],
+    );
+    for (const [columnId, name, position] of [
+      ["todo", "برای انجام", 0],
+      ["doing", "در حال انجام", 1],
+      ["done", "انجام شده", 2],
+    ] as const) {
+      await tx.query(
+        "insert into kanban_columns(id,board_id,name,position) values($1,$2,$3,$4)",
+        [columnId, id, name, position],
+      );
+    }
+  });
+  return { id, name: "جریان" };
+}
+
 export async function listBoard(userId: string, boardId: string): Promise<{board:{id:string;name:string};columns:BoardColumn[];cards:BoardCard[]}> {
-  const sql = await assertBoardOwner(userId, boardId);
-  const boards = await sql.query<{ id:string; name:string }>("select id,name from kanban_boards where id=$1",[boardId]);
-  const columns = await sql.query<BoardColumn>("select id,name,position from kanban_columns where board_id=$1 order by position,id",[boardId]);
-  const cards = await sql.query<BoardCard>("select id,column_id,position,title,description,priority,due_date,created_at,updated_at,agent_state,workflow_phase,github_repo,github_issue_number,github_pr_number,github_issue_state,github_pr_state,github_pr_merged,github_ci_state,github_synced_at from kanban_cards where board_id=$1 and archived_at is null order by column_id,position,created_at",[boardId]);
+  // "default" is the UI's stable initial selector, not a cross-user board ID.
+  // Resolve it to a board owned by the verified user, creating a private board
+  // for first-time users instead of exposing the legacy dev-user board.
+  const selected = boardId === "default" ? await ensureDefaultBoardForUser(userId) : null;
+  const resolvedBoardId = selected?.id ?? boardId;
+  const sql = await assertBoardOwner(userId, resolvedBoardId);
+  const boards = await sql.query<{ id:string; name:string }>("select id,name from kanban_boards where id=$1",[resolvedBoardId]);
+  const columns = await sql.query<BoardColumn>("select id,name,position from kanban_columns where board_id=$1 order by position,id",[resolvedBoardId]);
+  const cards = await sql.query<BoardCard>("select id,column_id,position,title,description,priority,due_date,created_at,updated_at,agent_state,workflow_phase,github_repo,github_issue_number,github_pr_number,github_issue_state,github_pr_state,github_pr_merged,github_ci_state,github_synced_at from kanban_cards where board_id=$1 and archived_at is null order by column_id,position,created_at",[resolvedBoardId]);
   return { board: boards[0], columns, cards };
 }
 
