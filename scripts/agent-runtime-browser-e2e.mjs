@@ -164,6 +164,12 @@ try {
     extraHTTPHeaders: { Authorization: `Bearer ${token}` },
   });
   const page = await context.newPage();
+  // The app's auth client forwards the preview bearer through its middleware
+  // context from sessionStorage; a browser-wide header alone does not populate
+  // that context for TanStack server functions.
+  await page.addInitScript((bearerToken) => {
+    window.sessionStorage.setItem("grok-auth.bearer-token", bearerToken);
+  }, token);
   page.setDefaultTimeout(15000);
   page.on("pageerror", (error) => { report.pageError = error.message; });
   await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
