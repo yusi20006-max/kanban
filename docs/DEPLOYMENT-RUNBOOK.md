@@ -54,11 +54,11 @@ Never expose server-only variables through `VITE_*`; the only variable above int
       AND c.archived_at IS NULL;
    ```
 
-   Start an interactive session with `psql "$DATABASE_URL"`, then define `\\set test_card_id 'CARD_ID'` and `\\set test_email 'TEST_EMAIL'` at the psql prompt before running the query. It must return exactly one row and both boolean checks must be `t`. A missing row or either false value is a failure; do not treat a successful UI toast alone as proof of persistence or ownership.
+   Start an interactive session with `psql "$DATABASE_URL"`, then define `\set test_card_id 'CARD_ID'` and `\set test_email 'TEST_EMAIL'` at the psql prompt before running the query. It must return exactly one row and both boolean checks must be `t`. A missing row or either false value is a failure; do not treat a successful UI toast alone as proof of persistence or ownership.
 8. Restart/redeploy the application without deleting database rows, then rerun the same query and confirm the same card ID and both ownership checks remain valid.
 9. If the MCP HTTP sidecar is deployed, verify authenticated `POST /mcp` with a real MCP client and confirm unauthenticated `/mcp` returns 401.
-9. Verify PWA installability on mobile and desktop.
-10. Run the final Agent → MCP → Kanban → GitHub → CI → Merge → Kanban smoke.
+10. Verify PWA installability on mobile and desktop.
+11. Run the final Agent → MCP → Kanban → GitHub → CI → Merge → Kanban smoke.
 
 CI must not receive production credentials.
 
