@@ -157,12 +157,11 @@ try {
   worker.stderr.on("data", (chunk) => { workerOutput += chunk.toString(); });
 
   browser = await chromium.launch({ headless: true });
-  // Better Auth's bearer plugin accepts the opaque session token directly.
-  // This avoids fabricating a signed __Host cookie (which browsers correctly
-  // reject on local HTTP) while still exercising the real auth middleware.
-  const context = await browser.newContext({
-    extraHTTPHeaders: { Authorization: `Bearer ${token}` },
-  });
+  // The auth client reads the synthetic session token from sessionStorage and
+  // attaches it only to same-origin auth/server-function requests. Do not set a
+  // browser-wide Authorization header: that leaks into cross-origin font requests
+  // and triggers CORS preflights unrelated to the app's authenticated requests.
+  const context = await browser.newContext();
   const page = await context.newPage();
   // The app's auth client forwards the preview bearer through its middleware
   // context from sessionStorage; a browser-wide header alone does not populate
