@@ -4,42 +4,63 @@
 
 - Frontend and Kanban API: the TanStack Start/Nitro application.
 - Production database: PostgreSQL via `DATABASE_URL`; local/preview uses PGLite.
+- Authentication: Better Auth with email/password stored in the same PostgreSQL database. OAuth federation is optional and requires per-app broker credentials.
 - MCP: the same domain/tool registry is available through stdio and the independent Streamable HTTP sidecar at `/mcp`.
 - PWA: dynamic manifest plus a conservative service worker that caches only the app shell/navigation/CSS. Mutating API calls are never queued offline.
 - Health: `/health/live` is process liveness; `/health/ready` verifies database readiness.
 
 ## Required production environment
 
-- `DATABASE_URL`
-- `BETTER_AUTH_SECRET`
-- `BETTER_AUTH_URL`
-- `VITE_AUTH_ENABLED=true`
-- `GROK_AUTH_ISSUER`
-- `GROK_AUTH_CLIENT_ID`
-- `GROK_AUTH_CLIENT_SECRET`
-- `GITHUB_TOKEN` (server-only, minimum required GitHub permissions)
+Set these on the deployed application service:
+
+- `DATABASE_URL` — Neon pooled PostgreSQL connection string.
+- `BETTER_AUTH_SECRET` — unique, high-entropy secret; keep it stable across deploys and restarts.
+- `BETTER_AUTH_URL` — exact public origin, e.g. `https://kanban-web-production-692a.up.railway.app`.
+- `VITE_AUTH_ENABLED=true` — keep the browser and server auth modes aligned.
 - `APP_VERSION`
 - `VITE_PUBLIC_HOSTNAME`
-- `KANBAN_MCP_TOKEN`
-- `KANBAN_MCP_USER_ID`
-- `MCP_HOST`
-- `MCP_PORT`
-- `MCP_ALLOWED_HOST`
-- `MCP_ALLOWED_ORIGIN`
 
-Never expose server-only variables through `VITE_*`.
+Email/password sign-in is enabled by the application. The deploy migrator applies `migrations/0001_auth.sql` to create Better Auth's `user`, `session`, `account` and `verification` tables. Do not apply schema SQL manually when the migration runner can apply it.
+
+Optional integrations:
+
+- `GROK_AUTH_ISSUER`, `GROK_AUTH_CLIENT_ID`, `GROK_AUTH_CLIENT_SECRET` — only when enabling the Google/X OAuth broker buttons; use credentials provisioned for this production origin, not the live-preview client.
+- `GITHUB_TOKEN` — server-only, minimum required GitHub permissions; needed for GitHub integration features.
+- `KANBAN_MCP_TOKEN`, `KANBAN_MCP_USER_ID`, `MCP_HOST`, `MCP_PORT`, `MCP_ALLOWED_HOST`, `MCP_ALLOWED_ORIGIN` — only if deploying the separate MCP HTTP sidecar.
+
+Never expose server-only variables through `VITE_*`; the only variable above intended for the client bundle is the non-secret `VITE_AUTH_ENABLED` flag. Never log or paste secret values into issues, PRs or deployment output.
 
 ## Deploy sequence
 
-1. Build the application.
-2. Run database migrations.
-3. Start the application.
-4. Start the MCP HTTP sidecar on its own process/container.
+1. Configure the production variables above before exposing the deployment.
+2. Build the application.
+3. Run database migrations.
+4. Start the application.
 5. Verify `/health/live` and `/health/ready`.
-6. Verify authenticated `POST /mcp` with a real MCP client.
-7. Verify unauthenticated `/mcp` returns 401.
-8. Verify PWA installability on mobile and desktop.
-9. Run the final Agent → MCP → Kanban → GitHub → CI → Merge → Kanban smoke.
+6. Register a disposable account at `/login`, sign in, and create a disposable test card from the deployed UI. Record the test account email and card ID locally; do not put credentials or production connection strings in logs, issues, or PRs.
+7. Verify both persistence and ownership in Neon. Run the following with `psql` against the production database, substituting the test account email and card ID using psql variables (do not paste the connection string into shared output):
+
+   ```sql
+   SELECT c.id AS card_id,
+          b.id AS board_id,
+          u.id AS authenticated_user_id,
+          (b.owner_user_id = u.id) AS board_owner_matches,
+          (c.board_id = b.id) AS card_board_matches
+     FROM kanban_cards c
+     JOIN kanban_boards b ON b.id = c.board_id
+     JOIN "user" u ON u.id = b.owner_user_id
+    WHERE c.id = :'test_card_id'
+      AND u.email = :'test_email'
+      AND c.archived_at IS NULL;
+   ```
+
+   Start an interactive session with `psql "$DATABASE_URL"`, then define `\set test_card_id 'CARD_ID'` and `\set test_email 'TEST_EMAIL'` at the psql prompt before running the query. It must return exactly one row and both boolean checks must be `t`. A missing row or either false value is a failure; do not treat a successful UI toast alone as proof of persistence or ownership.
+8. Restart/redeploy the application without deleting database rows, then rerun the same query and confirm the same card ID and both ownership checks remain valid.
+9. If the MCP HTTP sidecar is deployed, verify authenticated `POST /mcp` with a real MCP client and confirm unauthenticated `/mcp` returns 401.
+10. Verify PWA installability on mobile and desktop.
+11. Run the final Agent → MCP → Kanban → GitHub → CI → Merge → Kanban smoke.
+
+CI must not receive production credentials.
 
 ## Backup and restore
 
@@ -73,6 +94,7 @@ Minimum monitoring targets:
 - `/health/live` availability.
 - `/health/ready` availability and database failures.
 - API/MCP `RATE_LIMITED` errors.
+- Authentication/session failures.
 - GitHub authentication/rate-limit failures.
 - Audit-event error outcomes.
 

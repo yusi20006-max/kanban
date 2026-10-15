@@ -157,20 +157,101 @@ try {
   worker.stderr.on("data", (chunk) => { workerOutput += chunk.toString(); });
 
   browser = await chromium.launch({ headless: true });
-  // Better Auth's bearer plugin accepts the opaque session token directly.
-  // This avoids fabricating a signed __Host cookie (which browsers correctly
-  // reject on local HTTP) while still exercising the real auth middleware.
-  const context = await browser.newContext({
-    extraHTTPHeaders: { Authorization: `Bearer ${token}` },
-  });
+  // The auth client reads the synthetic session token from sessionStorage and
+  // attaches it only to same-origin auth/server-function requests. Do not set a
+  // browser-wide Authorization header: that leaks into cross-origin font requests
+  // and triggers CORS preflights unrelated to the app's authenticated requests.
+  const context = await browser.newContext();
   const page = await context.newPage();
+  // The app's auth client forwards the preview bearer through its middleware
+  // context from sessionStorage; a browser-wide header alone does not populate
+  // that context for TanStack server functions.
+  await page.addInitScript((bearerToken) => {
+    window.sessionStorage.setItem("grok-auth.bearer-token", bearerToken);
+  }, token);
   page.setDefaultTimeout(15000);
-  page.on("pageerror", (error) => { report.pageError = error.message; });
+  page.on("pageerror", () => { report.pageError = { type: "pageerror" }; });
+  const pageResponses = [];
+  page.on("response", (response) => {
+    const requestUrl = new URL(response.url());
+    pageResponses.push({ path: requestUrl.pathname, status: response.status(), method: response.request().method() });
+  });
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      // Console text can contain URLs, user input, or backend details. Keep only
+      // the event type in the CI artifact; never persist raw browser messages.
+      report.browserConsoleErrors = [...(report.browserConsoleErrors ?? []), { type: "error" }].slice(-10);
+    }
+  });
   await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
   console.log("[browser-e2e] page loaded; waiting for fixture card");
 
+  // Safe diagnostics: never record request headers, cookies, session tokens, or DB URLs.
+  const fixtureState = await pool.query(
+    `select b.id as board_id, (b.owner_user_id=$2) as board_owned_by_test_user,
+            count(distinct c.id)::int as visible_fixture_cards,
+            count(distinct col.id)::int as board_columns
+       from kanban_boards b
+       left join kanban_cards c on c.board_id=b.id and c.id=$1 and c.archived_at is null
+       left join kanban_columns col on col.board_id=b.id
+      where b.id='default' group by b.id,b.owner_user_id`,
+    [cardId, userId],
+  );
+  const sessionCheck = await pool.query(
+    `select exists(
+       select 1 from "session" s join "user" u on u."id"=s."userId"
+        where s."token"=$1 and s."userId"=$2 and s."expiresAt">now()
+     ) as valid_session`,
+    [token, userId],
+  );
+  let authEndpoint = { status: null, authenticatedAsTestUser: false };
+  try {
+    const authResponse = await fetch(`${baseUrl}/api/auth/get-session`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(3000),
+    });
+    const authBody = await authResponse.json().catch(() => null);
+    authEndpoint = {
+      status: authResponse.status,
+      authenticatedAsTestUser: authBody?.user?.id === userId,
+    };
+  } catch (error) {
+    authEndpoint = { status: null, authenticatedAsTestUser: false, errorType: error instanceof Error ? error.name : "FETCH_ERROR" };
+  }
+  report.diagnostics = {
+    currentPath: new URL(page.url()).pathname,
+    pageTitle: await page.title().catch(() => ""),
+    visibleText: (await page.locator("body").innerText().catch(() => "")).slice(0, 1600),
+    pageResponses: pageResponses.slice(-30),
+    session: {
+      validSyntheticSessionInDatabase: sessionCheck.rows[0]?.valid_session === true,
+      authEndpointStatus: authEndpoint.status,
+      authEndpointRecognizedTestUser: authEndpoint.authenticatedAsTestUser,
+      authEndpointErrorType: authEndpoint.errorType ?? null,
+    },
+    fixture: fixtureState.rows[0] ?? { boardFound: false },
+  };
   const fixtureCard = page.getByRole("heading", { name: cardTitle, exact: true });
-  await fixtureCard.waitFor({ state: "visible" });
+  try {
+    await fixtureCard.waitFor({ state: "visible" });
+  } catch (error) {
+    report.diagnostics.pageResponses = pageResponses.slice(-50);
+    report.diagnostics.fixtureHeadingVisible = false;
+    report.diagnostics.loginVisible = await page.getByRole("heading", { name: /ورود به جریان/ }).count().catch(() => 0) > 0;
+    report.diagnostics.notFoundVisible = /not found|صفحه.*پیدا نشد/i.test(report.diagnostics.visibleText);
+    await page.screenshot({ path: "artifacts/agent-runtime-browser-e2e-failure.png", fullPage: true }).catch(() => {});
+    throw new Error(`FIXTURE_CARD_NOT_VISIBLE:${JSON.stringify({
+      path: report.diagnostics.currentPath,
+      loginVisible: report.diagnostics.loginVisible,
+      notFoundVisible: report.diagnostics.notFoundVisible,
+      session: report.diagnostics.session,
+      fixture: report.diagnostics.fixture,
+      recentResponses: report.diagnostics.pageResponses.slice(-12),
+      visibleText: report.diagnostics.visibleText.slice(0, 500),
+      cause: error instanceof Error ? error.message : String(error),
+    })}`);
+  }
+  report.diagnostics.fixtureHeadingVisible = true;
   await fixtureCard.click();
 
   const dialog = page.getByRole("dialog");

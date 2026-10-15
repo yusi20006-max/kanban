@@ -37,6 +37,7 @@ export const COLUMN_META: Record<ColumnId, { title: string; hint: string; tone: 
 const BOARD_ID = "default";
 
 type BoardState = {
+  boardId: string;
   columns: Columns;
   columnMeta: Record<ColumnId, ColumnMeta>;
   cards: Record<string, Card>;
@@ -93,6 +94,7 @@ function toCard(row: {
 }
 
 function fromRows(rows: Awaited<ReturnType<typeof listBoard>>): {
+  boardId: string;
   cards: Record<string, Card>;
   columns: Columns;
   columnMeta: Record<ColumnId, ColumnMeta>;
@@ -109,10 +111,11 @@ function fromRows(rows: Awaited<ReturnType<typeof listBoard>>): {
     cards[card.id] = card;
     columns[row.column_id].push(card.id);
   }
-  return { cards, columns, columnMeta };
+  return { boardId: rows.board.id, cards, columns, columnMeta };
 }
 
 export const useBoardStore = create<BoardState>((set, get) => ({
+  boardId: BOARD_ID,
   columns: {},
   columnMeta: {},
   cards: {},
@@ -146,7 +149,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     set({ syncing: true, syncError: null });
     try {
       const result = await createCard({
-        data: { boardId: BOARD_ID, title: title.trim(), description: description.trim(), columnId },
+        data: { boardId: get().boardId, title: title.trim(), description: description.trim(), columnId },
       });
       await get().hydrate();
       return result.id;
@@ -163,7 +166,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     try {
       await updateCard({
         data: {
-          boardId: BOARD_ID,
+          boardId: get().boardId,
           cardId: id,
           title: title.trim(),
           description: description.trim(),
@@ -182,7 +185,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
   deleteCard: async (id) => {
     set({ syncing: true, syncError: null });
     try {
-      await archiveCard({ data: { boardId: BOARD_ID, cardId: id } });
+      await archiveCard({ data: { boardId: get().boardId, cardId: id } });
       await get().hydrate();
     } catch (error) {
       set({ syncing: false, syncError: error instanceof Error ? error.message : "ARCHIVE_FAILED" });
@@ -213,7 +216,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     }));
     void moveCardRemote({
       data: {
-        boardId: BOARD_ID,
+        boardId: get().boardId,
         cardId: activeId,
         columnId: overContainer,
         beforeCardId: next[next.indexOf(activeId) + 1] ?? null,

@@ -95,7 +95,7 @@ export function CardDialog({ state, onClose }: CardDialogProps) {
   async function startExecution() {
     if (state.mode !== "edit") return;
     try {
-      await startCardExecutionFn({ data: { boardId: "default", cardId: state.cardId, idempotencyKey: `card-start:${state.cardId}:${Date.now()}` } });
+      await startCardExecutionFn({ data: { boardId: useBoardStore.getState().boardId, cardId: state.cardId, idempotencyKey: `card-start:${state.cardId}:${Date.now()}` } });
       await useBoardStore.getState().hydrate();
       toast("Task و Execution Agent شروع شد");
     } catch (error) {
@@ -106,7 +106,7 @@ export function CardDialog({ state, onClose }: CardDialogProps) {
   async function handleTransition(toState: "running" | "blocked" | "completed") {
     if (state.mode !== "edit") return;
     try {
-      await transitionAgentFn({ data: { boardId: "default", cardId: state.cardId, toState } });
+      await transitionAgentFn({ data: { boardId: useBoardStore.getState().boardId, cardId: state.cardId, toState } });
       await useBoardStore.getState().hydrate();
       toast(toState === "running" ? "اجرای Agent شروع شد" : toState === "completed" ? "Agent تکمیل شد" : "Agent متوقف شد");
     } catch (error) {
@@ -117,7 +117,7 @@ export function CardDialog({ state, onClose }: CardDialogProps) {
   async function refreshGithub() {
     if (state.mode !== "edit" || !editing?.githubRepo) return;
     try {
-      await refreshGithubFn({ data: { boardId: "default", cardId: state.cardId } });
+      await refreshGithubFn({ data: { boardId: useBoardStore.getState().boardId, cardId: state.cardId } });
       await useBoardStore.getState().hydrate();
       toast("وضعیت GitHub به‌روز شد");
     } catch (error) {

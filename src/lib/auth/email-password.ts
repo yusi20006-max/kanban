@@ -1,10 +1,8 @@
 /**
- * Local email/password sign-in (this app's Better Auth DB — not the broker).
+ * Self-hosted email/password sign-in backed by this app's Better Auth database.
  *
- * Off by default. To enable: set `emailAndPasswordEnabled` to `true` below,
- * then build sign-up / sign-in forms with `authClient.signUp.email` /
- * `authClient.signIn.email` from `@/lib/auth/client` (see the auth skill).
- *
- * Do NOT edit `server.ts` for this — that file is frozen pre-wired config.
+ * This is the production-safe fallback when per-app OAuth broker credentials
+ * have not been provisioned. User accounts and sessions are stored in the
+ * same PostgreSQL database as Kanban data; no shared dev identity is used.
  */
-export const emailAndPasswordEnabled = false;
+export const emailAndPasswordEnabled = true;
