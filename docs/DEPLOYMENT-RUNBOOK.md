@@ -37,9 +37,26 @@ Never expose server-only variables through `VITE_*`; the only variable above int
 3. Run database migrations.
 4. Start the application.
 5. Verify `/health/live` and `/health/ready`.
-6. Register an account at `/login`, sign in, and create a test card from the deployed UI.
-7. Verify the card row exists in Neon and survives an application restart.
-8. If the MCP HTTP sidecar is deployed, verify authenticated `POST /mcp` with a real MCP client and confirm unauthenticated `/mcp` returns 401.
+6. Register a disposable account at `/login`, sign in, and create a disposable test card from the deployed UI. Record the test account email and card ID locally; do not put credentials or production connection strings in logs, issues, or PRs.
+7. Verify both persistence and ownership in Neon. Run the following with `psql` against the production database, substituting the test account email and card ID using psql variables (do not paste the connection string into shared output):
+
+   ```sql
+   SELECT c.id AS card_id,
+          b.id AS board_id,
+          u.id AS authenticated_user_id,
+          (b.owner_user_id = u.id) AS board_owner_matches,
+          (c.board_id = b.id) AS card_board_matches
+     FROM kanban_cards c
+     JOIN kanban_boards b ON b.id = c.board_id
+     JOIN "user" u ON u.id = b.owner_user_id
+    WHERE c.id = :'test_card_id'
+      AND u.email = :'test_email'
+      AND c.archived_at IS NULL;
+   ```
+
+   Example invocation: `psql "$DATABASE_URL" -v test_card_id='CARD_ID' -v test_email='TEST_EMAIL' -c '<query above>'`. The query must return exactly one row and both boolean checks must be `t`. A missing row or either false value is a failure; do not treat a successful UI toast alone as proof of persistence or ownership.
+8. Restart/redeploy the application without deleting database rows, then rerun the same query and confirm the same card ID and both ownership checks remain valid.
+9. If the MCP HTTP sidecar is deployed, verify authenticated `POST /mcp` with a real MCP client and confirm unauthenticated `/mcp` returns 401.
 9. Verify PWA installability on mobile and desktop.
 10. Run the final Agent → MCP → Kanban → GitHub → CI → Merge → Kanban smoke.
 
