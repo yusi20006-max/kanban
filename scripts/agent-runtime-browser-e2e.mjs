@@ -172,11 +172,55 @@ try {
   }, token);
   page.setDefaultTimeout(15000);
   page.on("pageerror", (error) => { report.pageError = error.message; });
+  const pageResponses = [];
+  page.on("response", (response) => {
+    const requestUrl = new URL(response.url());
+    pageResponses.push({ path: requestUrl.pathname, status: response.status(), method: response.request().method() });
+  });
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      report.browserConsoleErrors = [...(report.browserConsoleErrors ?? []), message.text().slice(0, 500)].slice(-10);
+    }
+  });
   await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
   console.log("[browser-e2e] page loaded; waiting for fixture card");
 
+  // Safe diagnostics: never record request headers, cookies, session tokens, or DB URLs.
+  const fixtureState = await pool.query(
+    `select b.id as board_id, (b.owner_user_id=$2) as board_owned_by_test_user,
+            count(c.id)::int as visible_fixture_cards,
+            count(col.id)::int as board_columns
+       from kanban_boards b
+       left join kanban_cards c on c.board_id=b.id and c.id=$1 and c.archived_at is null
+       left join kanban_columns col on col.board_id=b.id
+      where b.id='default' group by b.id,b.owner_user_id`,
+    [cardId, userId],
+  );
+  report.diagnostics = {
+    currentPath: new URL(page.url()).pathname,
+    pageTitle: await page.title().catch(() => ""),
+    visibleText: (await page.locator("body").innerText().catch(() => "")).slice(0, 1600),
+    pageResponses: pageResponses.slice(-30),
+    fixture: fixtureState.rows[0] ?? { boardFound: false },
+  };
   const fixtureCard = page.getByRole("heading", { name: cardTitle, exact: true });
-  await fixtureCard.waitFor({ state: "visible" });
+  try {
+    await fixtureCard.waitFor({ state: "visible" });
+  } catch (error) {
+    report.diagnostics.fixtureHeadingVisible = false;
+    report.diagnostics.loginVisible = await page.getByRole("heading", { name: /ورود به جریان/ }).count().catch(() => 0) > 0;
+    report.diagnostics.notFoundVisible = /not found|صفحه.*پیدا نشد/i.test(report.diagnostics.visibleText);
+    throw new Error(`FIXTURE_CARD_NOT_VISIBLE:${JSON.stringify({
+      path: report.diagnostics.currentPath,
+      loginVisible: report.diagnostics.loginVisible,
+      notFoundVisible: report.diagnostics.notFoundVisible,
+      fixture: report.diagnostics.fixture,
+      recentResponses: report.diagnostics.pageResponses.slice(-12),
+      visibleText: report.diagnostics.visibleText.slice(0, 500),
+      cause: error instanceof Error ? error.message : String(error),
+    })}`);
+  }
+  report.diagnostics.fixtureHeadingVisible = true;
   await fixtureCard.click();
 
   const dialog = page.getByRole("dialog");
