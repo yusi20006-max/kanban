@@ -196,11 +196,38 @@ try {
       where b.id='default' group by b.id,b.owner_user_id`,
     [cardId, userId],
   );
+  const sessionCheck = await pool.query(
+    `select exists(
+       select 1 from "session" s join "user" u on u."id"=s."userId"
+        where s."token"=$1 and s."userId"=$2 and s."expiresAt">now()
+     ) as valid_session`,
+    [token, userId],
+  );
+  let authEndpoint = { status: null, authenticatedAsTestUser: false };
+  try {
+    const authResponse = await fetch(`${baseUrl}/api/auth/get-session`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(3000),
+    });
+    const authBody = await authResponse.json().catch(() => null);
+    authEndpoint = {
+      status: authResponse.status,
+      authenticatedAsTestUser: authBody?.user?.id === userId,
+    };
+  } catch (error) {
+    authEndpoint = { status: null, authenticatedAsTestUser: false, errorType: error instanceof Error ? error.name : "FETCH_ERROR" };
+  }
   report.diagnostics = {
     currentPath: new URL(page.url()).pathname,
     pageTitle: await page.title().catch(() => ""),
     visibleText: (await page.locator("body").innerText().catch(() => "")).slice(0, 1600),
     pageResponses: pageResponses.slice(-30),
+    session: {
+      validSyntheticSessionInDatabase: sessionCheck.rows[0]?.valid_session === true,
+      authEndpointStatus: authEndpoint.status,
+      authEndpointRecognizedTestUser: authEndpoint.authenticatedAsTestUser,
+      authEndpointErrorType: authEndpoint.errorType ?? null,
+    },
     fixture: fixtureState.rows[0] ?? { boardFound: false },
   };
   const fixtureCard = page.getByRole("heading", { name: cardTitle, exact: true });
@@ -210,10 +237,12 @@ try {
     report.diagnostics.fixtureHeadingVisible = false;
     report.diagnostics.loginVisible = await page.getByRole("heading", { name: /ورود به جریان/ }).count().catch(() => 0) > 0;
     report.diagnostics.notFoundVisible = /not found|صفحه.*پیدا نشد/i.test(report.diagnostics.visibleText);
+    await page.screenshot({ path: "artifacts/agent-runtime-browser-e2e-failure.png", fullPage: true }).catch(() => {});
     throw new Error(`FIXTURE_CARD_NOT_VISIBLE:${JSON.stringify({
       path: report.diagnostics.currentPath,
       loginVisible: report.diagnostics.loginVisible,
       notFoundVisible: report.diagnostics.notFoundVisible,
+      session: report.diagnostics.session,
       fixture: report.diagnostics.fixture,
       recentResponses: report.diagnostics.pageResponses.slice(-12),
       visibleText: report.diagnostics.visibleText.slice(0, 500),
