@@ -170,7 +170,7 @@ try {
     window.sessionStorage.setItem("grok-auth.bearer-token", bearerToken);
   }, token);
   page.setDefaultTimeout(15000);
-  page.on("pageerror", (error) => { report.pageError = error.message; });
+  page.on("pageerror", () => { report.pageError = { type: "pageerror" }; });
   const pageResponses = [];
   page.on("response", (response) => {
     const requestUrl = new URL(response.url());
@@ -178,7 +178,9 @@ try {
   });
   page.on("console", (message) => {
     if (message.type() === "error") {
-      report.browserConsoleErrors = [...(report.browserConsoleErrors ?? []), message.text().slice(0, 500)].slice(-10);
+      // Console text can contain URLs, user input, or backend details. Keep only
+      // the event type in the CI artifact; never persist raw browser messages.
+      report.browserConsoleErrors = [...(report.browserConsoleErrors ?? []), { type: "error" }].slice(-10);
     }
   });
   await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
