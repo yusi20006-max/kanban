@@ -184,23 +184,15 @@ export const auth = betterAuth({
   // local loopback variants, or clients get "Invalid origin".
   trustedOrigins,
 
-  // Encrypt broker-issued OAuth tokens at rest, and treat the broker's upstreams
-  // as trusted first-party identities. The broker owns identity and X emails are
-  // synthetic/unverified, so WITHOUT this a login can fail with
-  // `account_not_linked` (Better Auth refuses to attach an untrusted, unverified
-  // identity to an existing user). Google and X carry DISTINCT emails, so this
-  // never merges them into one user — they stay separate identities.
+  // Encrypt broker-issued OAuth tokens at rest. Do not implicitly link OAuth
+  // identities to an existing account by matching email: provider email claims
+  // may be unverified or synthetic, and account linking can otherwise become an
+  // account-takeover path. If linking is needed later, add an explicit flow that
+  // requires the user to authenticate to both accounts.
   account: {
     encryptOAuthTokens: true,
     accountLinking: {
-      enabled: true,
-      trustedProviders: [
-        ...GROK_PROVIDERS.map((p) => p.providerId),
-        GATE_PROVIDER_ID,
-      ],
-      // X's synthetic email is never "verified", so don't gate linking on the
-      // local user's email-verified state.
-      requireLocalEmailVerified: false,
+      enabled: false,
     },
   },
 
