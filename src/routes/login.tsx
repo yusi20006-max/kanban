@@ -11,11 +11,14 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     setError("");
+    setNotice("");
+    const signupAttempt = mode === "signup";
     try {
       const result = mode === "signup"
         ? await authClient.signUp.email({
@@ -28,13 +31,25 @@ function LoginPage() {
             password,
           });
 
+      if (signupAttempt) {
+        setMode("signin");
+        setPassword("");
+        setNotice("در صورت امکان، حساب آماده ورود است؛ با همان ایمیل و گذرواژه تلاش کنید.");
+        return;
+      }
       if (result.error) {
         setError("ورود یا ثبت‌نام انجام نشد. اطلاعات را بررسی کنید یا بعداً دوباره تلاش کنید.");
         return;
       }
       window.location.assign("/");
-    } catch (cause) {
-      setError("ورود یا ثبت‌نام انجام نشد. اطلاعات را بررسی کنید یا بعداً دوباره تلاش کنید.");
+    } catch {
+      if (signupAttempt) {
+        setMode("signin");
+        setPassword("");
+        setNotice("در صورت امکان، حساب آماده ورود است؛ با همان ایمیل و گذرواژه تلاش کنید.");
+      } else {
+        setError("ورود یا ثبت‌نام انجام نشد. اطلاعات را بررسی کنید یا بعداً دوباره تلاش کنید.");
+      }
     } finally {
       setBusy(false);
     }
@@ -56,7 +71,7 @@ function LoginPage() {
         <div className="mb-5 grid grid-cols-2 gap-2 rounded-lg bg-secondary p-1">
           <button
             type="button"
-            onClick={() => { setMode("signin"); setError(""); }}
+            onClick={() => { setMode("signin"); setError(""); setNotice(""); }}
             className={mode === "signin" ? "rounded-md bg-background px-3 py-2 text-sm font-medium shadow-sm" : "rounded-md px-3 py-2 text-sm text-muted-foreground"}
             aria-pressed={mode === "signin"}
           >
@@ -64,7 +79,7 @@ function LoginPage() {
           </button>
           <button
             type="button"
-            onClick={() => { setMode("signup"); setError(""); }}
+            onClick={() => { setMode("signup"); setError(""); setNotice(""); }}
             className={mode === "signup" ? "rounded-md bg-background px-3 py-2 text-sm font-medium shadow-sm" : "rounded-md px-3 py-2 text-sm text-muted-foreground"}
             aria-pressed={mode === "signup"}
           >
@@ -120,6 +135,11 @@ function LoginPage() {
           {error ? (
             <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
               {error}
+            </p>
+          ) : null}
+          {notice ? (
+            <p role="status" className="rounded-md border border-border bg-secondary/50 p-3 text-sm">
+              {notice}
             </p>
           ) : null}
 
