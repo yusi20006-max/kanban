@@ -29,12 +29,12 @@ function LoginPage() {
           });
 
       if (result.error) {
-        setError(result.error.message || "ورود انجام نشد. اطلاعات را بررسی کنید.");
+        setError("ورود یا ثبت‌نام انجام نشد. اطلاعات را بررسی کنید یا بعداً دوباره تلاش کنید.");
         return;
       }
       window.location.assign("/");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "خطای غیرمنتظره در احراز هویت.");
+      setError("ورود یا ثبت‌نام انجام نشد. اطلاعات را بررسی کنید یا بعداً دوباره تلاش کنید.");
     } finally {
       setBusy(false);
     }
