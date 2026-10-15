@@ -187,8 +187,8 @@ try {
   // Safe diagnostics: never record request headers, cookies, session tokens, or DB URLs.
   const fixtureState = await pool.query(
     `select b.id as board_id, (b.owner_user_id=$2) as board_owned_by_test_user,
-            count(c.id)::int as visible_fixture_cards,
-            count(col.id)::int as board_columns
+            count(distinct c.id)::int as visible_fixture_cards,
+            count(distinct col.id)::int as board_columns
        from kanban_boards b
        left join kanban_cards c on c.board_id=b.id and c.id=$1 and c.archived_at is null
        left join kanban_columns col on col.board_id=b.id
@@ -233,6 +233,7 @@ try {
   try {
     await fixtureCard.waitFor({ state: "visible" });
   } catch (error) {
+    report.diagnostics.pageResponses = pageResponses.slice(-50);
     report.diagnostics.fixtureHeadingVisible = false;
     report.diagnostics.loginVisible = await page.getByRole("heading", { name: /ورود به جریان/ }).count().catch(() => 0) > 0;
     report.diagnostics.notFoundVisible = /not found|صفحه.*پیدا نشد/i.test(report.diagnostics.visibleText);
