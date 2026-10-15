@@ -56,14 +56,26 @@ type BoardColumn = { id:string; name:string; position:number };
 type BoardCard = { id:string; column_id:string; position:number; title:string; description:string; priority:"low"|"medium"|"high"|"critical"; due_date:string|null; created_at:string; updated_at:string; agent_state:AgentState; workflow_phase:string; github_repo:string|null; github_issue_number:number|null; github_pr_number:number|null; github_issue_state:string|null; github_pr_state:string|null; github_pr_merged:boolean|null; github_ci_state:string|null; github_synced_at:string|null };
 async function ensureDefaultBoardForUser(userId: string): Promise<{ id: string; name: string }> {
   const sql = await getSql();
-  const existing = await sql.query<{ id: string; name: string }>(
-    "select id,name from kanban_boards where owner_user_id=$1 and archived_at is null order by case when id='default' then 0 else 1 end,created_at,id limit 1",
-    [userId],
-  );
+  const boardQuery =
+    "select id,name from kanban_boards where owner_user_id=$1 and archived_at is null order by case when id='default' then 0 else 1 end,created_at,id limit 1";
+  const existing = await sql.query<{ id: string; name: string }>(boardQuery, [userId]);
   if (existing[0]) return existing[0];
 
-  const id = crypto.randomUUID();
-  await sql.transaction(async (tx) => {
+  // Serialize first-board provisioning per authenticated user. The user row is
+  // created by Better Auth before an authenticated request can reach this path.
+  // Re-check after acquiring the row lock so concurrent first requests reuse the
+  // same board rather than inserting duplicate private boards.
+  return sql.transaction(async (tx) => {
+    const userRows = await tx.query<{ id: string }>(
+      'select "id" from "user" where "id"=$1 for update',
+      [userId],
+    );
+    if (!userRows[0]) throw new Error("AUTH_USER_NOT_FOUND");
+
+    const inTransaction = await tx.query<{ id: string; name: string }>(boardQuery, [userId]);
+    if (inTransaction[0]) return inTransaction[0];
+
+    const id = crypto.randomUUID();
     await tx.query(
       "insert into kanban_boards(id,name,description,owner_user_id) values($1,$2,$3,$4)",
       [id, "جریان", "", userId],
@@ -78,8 +90,8 @@ async function ensureDefaultBoardForUser(userId: string): Promise<{ id: string; 
         [columnId, id, name, position],
       );
     }
+    return { id, name: "جریان" };
   });
-  return { id, name: "جریان" };
 }
 
 export async function listBoard(userId: string, boardId: string): Promise<{board:{id:string;name:string};columns:BoardColumn[];cards:BoardCard[]}> {
