@@ -9,7 +9,8 @@ const child = spawn("npx", ["tsx", "src/mcp/http-server.ts"], {
   },
   stdio: ["ignore", "pipe", "pipe"],
 });
-child.stderr.on("data", () => {});
+let serverLogs = "";
+child.stderr.on("data", (chunk) => { serverLogs += chunk.toString(); });
 
 async function wait() {
   for (let i = 0; i < 50; i += 1) {
@@ -51,6 +52,10 @@ try {
   const text = await authorized.text();
   if (!text.includes("serverInfo")) throw new Error("MCP initialize response missing serverInfo");
   console.log("MCP HTTP smoke: health + 401 + authenticated initialize PASS");
+} catch (error) {
+  console.error("MCP HTTP smoke failed:", error instanceof Error ? error.message : "unknown error");
+  console.error("MCP server stderr tail:", serverLogs.split("\n").slice(-30).join("\n"));
+  process.exitCode = 1;
 } finally {
   child.kill();
 }
